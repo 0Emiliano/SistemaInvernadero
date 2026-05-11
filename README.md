@@ -1,4 +1,4 @@
-# 🌿 Greenhouse IoT Monitor
+# 🌿 Sistema Invernadero IoT Monitor
 
 ## 📝 Descripción del Proyecto
 Sistema IoT distribuido para el monitoreo ambiental de invernaderos. Captura y procesa datos de temperatura y humedad en tiempo real para prevenir la pérdida de cultivos mediante alertas tempranas y análisis de datos. 
@@ -71,7 +71,47 @@ graph TD
 
     Edge -.->|Hereda estándares| Core
     Consumers -.->|Hereda estándares| Core
+```
 
+### 3. Diagrama de Despliegue (Infraestructura)
+Topología de red y despliegue físico del sistema industrial.
 
+```mermaid
+graph LR
+    classDef hardware fill:#eceff1,stroke:#546e7a,stroke-width:2px;
+    classDef cloud fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef database fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef client fill:#fff8e1,stroke:#ffb300,stroke-width:2px;
 
+    subgraph NodoEdge [Invernadero]
+        Sensors((Sensores Físicos)):::hardware
+        Gateway[Industrial Gateway]:::hardware
+        Sensors -->|Señales| Gateway
+    end
 
+    subgraph AppServer [Servidor Backend]
+        Backend("Docker - Spring Boot"):::cloud
+    end
+
+    Gateway -->|TCP Pto 9000 sobre VPN| Backend
+
+    subgraph Middleware [Middleware]
+        RabbitMQ[(RabbitMQ)]:::cloud
+    end
+
+    Backend -->|AMQP| RabbitMQ
+    RabbitMQ -->|Eventos| Backend
+
+    subgraph DataNode [Nodo de Datos]
+        DB[(PostgreSQL)]:::database
+    end
+
+    Backend -->|Persistencia| DB
+
+    subgraph ClientLayer [Capa Cliente]
+        BI[Dashboards / BI]:::client
+        Mobile[Apps Móviles]:::client
+    end
+
+    BI -->|HTTPS API REST| Backend
+    Mobile -->|HTTPS API REST| Backend
