@@ -1,6 +1,6 @@
-package com.greenhouse.sensors.modules.registry;
+package com.sistemas.invernadero.modules.registry;
 
-import com.greenhouse.sensors.core.responses.ApiResponse;
+import com.sistemas.invernadero.core.responses.ApiResponse;
 import org.springframework.web.bind.annotation.*;
 import java.util.Arrays;
 import java.util.List;

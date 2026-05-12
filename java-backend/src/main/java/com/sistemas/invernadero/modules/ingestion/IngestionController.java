@@ -1,9 +1,9 @@
-package com.greenhouse.sensors.modules.ingestion;
+package com.sistemas.invernadero.modules.ingestion;
 
-import com.greenhouse.sensors.modules.ingestion.adapters.SensorAdapter;
-import com.greenhouse.sensors.config.RabbitConfig;
-import com.greenhouse.sensors.shared.model.SensorReading;
-import com.greenhouse.sensors.core.responses.ApiResponse;
+import com.sistemas.invernadero.modules.ingestion.adapters.SensorAdapter;
+import com.sistemas.invernadero.config.RabbitConfig;
+import com.sistemas.invernadero.shared.model.SensorReading;
+import com.sistemas.invernadero.core.responses.ApiResponse;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -34,7 +34,7 @@ public class IngestionController {
         SensorReading reading = adapter.parse(rawPayload);
         reading.setGreenhouseId(greenhouseId);
 
-        String routingKey = "greenhouse." + greenhouseId + "." + reading.getSensorId();
+        String routingKey = "invernadero." + greenhouseId + "." + reading.getSensorId();
         rabbitTemplate.convertAndSend(RabbitConfig.EXCHANGE_NAME, routingKey, reading);
 
         return ApiResponse.success(

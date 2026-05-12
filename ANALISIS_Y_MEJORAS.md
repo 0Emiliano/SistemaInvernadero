@@ -1,21 +1,20 @@
 # ANÁLISIS DE MEJORAS Y FIXES OPERATIVOS
-## Basado en la auditoría de api-tattoo y Requisitos de Invernadero
+## Basado en la auditoría de api-tattoo y Requisitos de Sistema Invernadero
 
-### 1. MEJORAS ESTRUCTURALES (Fixes de Diseño)
-Al analizar `api-tattoo`, se identificaron patrones de éxito que se han migrado a este proyecto para evitar "bugs de arquitectura" comunes:
+### 1. MEJORAS ESTRUCTURALES (Implementadas)
+*   **Pivot de Mensajería (RabbitMQ)**: Se ha implementado con éxito el exchange de tipo Topic. Esto desacopla la ingesta de la lógica de negocio y persistencia, permitiendo que el sistema soporte picos de carga sin pérdida de datos.
+*   **Persistencia de Alto Consumo (TimescaleDB)**: La migración de una base SQL tradicional a una Hybertable de TimescaleDB permite manejar millones de registros de sensores sin degradación de consultas, optimizando los dashboards de BI.
+*   **Ingesta TCP Multihilo**: La inclusión de `Spring Integration IP` permite recibir telemetría directa de Gateways industriales, superando las limitaciones de HTTP para dispositivos de baja energía.
 
-*   **Manejo de Estados de Error:** En `api-tattoo` usabas un manejador global. Aquí lo hemos robustecido para manejar errores de **AMQP (RabbitMQ)**. Si RabbitMQ cae, el `DataIngestion` tiene ahora un mecanismo de "Circuit Breaker" para no intentar enviar mensajes a un broker inexistente, evitando fugas de memoria por hilos bloqueados.
-*   **Normalización de Respuestas:** Se ha fijado el objeto `ApiResponse` como UNICO medio de comunicación con el cliente. Esto previene que el frontend reciba formatos inconsistentes (mezcla de strings y JSON) que causen crashes en dashboards de BI.
+### 2. SEGURIDAD Y RESILIENCIA (Aplicados)
+*   **Filtro de Ruido (Sanitización)**: Se implementó validación de rangos físicos. Lecturas fuera de la realidad biológica (ej. 150°C en aire) se marcan para revisión técnica sin disparar alarmas de evacuación innecesarias.
+*   **Global Exception Handling**: Mapeo universal de errores (heredado de `api-tattoo`) que asegura que el Gateway reciba un `NACK` o un código de error JSON estructurado ante fallos internos.
 
-### 2. SEGURIDAD Y RESILIENCIA (Fixes Críticos)
-*   **Rate Limiting (Protección de Recursos):** En el repositorio de tatuajes usabas un limiter para el auth. Aquí hemos implementado un limiter en la capa de ingesta. **Riesgo:** Un sensor fallido en el invernadero puede enviar 10,000 lecturas por segundo. **Solución:** Limitar por `sensorId` a nivel de aplicación para proteger la base de datos.
-*   **Sanitización de IDs:** Los IDs de sensores vienen de fuentes externas (binarios). Se ha añadido una validación rígida para prevenir inyección de caracteres maliciosos en los Routing Keys de RabbitMQ, lo cual podría redirigir mensajes a colas no autorizadas.
+### 3. INTERFAZ DE USUARIO (Front-end Fixes)
+*   **Visualización Cognitiva**: El dashboard no solo muestra números, sino tendencias (Recharts). Esto ayuda a los operadores a identificar patrones de deshidratación antes de que las plantas sufran daños permanentes.
+*   **Motion UI**: Uso de micro-interacciones para dar feedback visual instantáneo cuando una alerta es detectada por el backend.
 
-### 3. OPTIMIZACIÓN DE DATOS (Fixes de Rendimiento)
-*   **Batching en Persistencia:** A diferencia de una API estándar, aquí no guardamos cada lectura individualmente. Se ha configurado el servicio de persistencia para acumular lecturas y hacer un "Bulk Insert" cada 500ms. Esto reduce el I/O en un 80% bajo carga pesada.
-*   **Contexto de Tiempo:** Se ha forzado el uso de `UTC` a nivel de servidor y base de datos para evitar el "bug de las zonas horarias" en los reportes de crecimiento de plantas.
-
-### 4. SUGERENCIA DE SKILLS / AGENTES
-Para este proyecto se recomienda activar los siguientes enfoques:
-*   **Skill: Real-time and Multi-user:** Para que los dashboards reflejen los cambios de temperatura instantáneamente mediante WebSockets conectados a la API REST.
-*   **Skill: Gemini-API:** Para el módulo de "Sistemas de Estadística e Inteligencia de Negocios". Gemini puede analizar las tendencias históricas de TimescaleDB y predecir cuándo ocurrirá una plaga basado en los índices de humedad.
+### 4. FUTURAS MEJORAS (Roadmap)
+*   **Bi-directional Control (MQTT)**: Implementar el flujo de regreso para que el Dashboard pueda no solo ver la temperatura, sino encender ventiladores o sistemas de riego mediante comandos RabbitMQ -> Gateway.
+*   **IA Predictive Analysis (Gemini)**: Integrar el análisis de series de tiempo de TimescaleDB con la API de Gemini para predecir brotes de plagas basados en micro-climas detectados en las últimas 48 horas.
+*   **WebSockets Auténticos**: Pasar de Polling/Mock a una conexión STOMP sobre WebSockets para que el dashboard sea 100% reactivo a la cola de RabbitMQ.

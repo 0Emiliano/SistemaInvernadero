@@ -1,11 +1,11 @@
-package com.greenhouse.sensors;
+package com.sistemas.invernadero;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class GreenhouseApplication {
+public class InvernaderoApplication {
     public static void main(String[] args) {
-        SpringApplication.run(GreenhouseApplication.class, args);
+        SpringApplication.run(InvernaderoApplication.class, args);
     }
 }

@@ -1,4 +1,4 @@
-package com.greenhouse.sensors.shared.model;
+package com.sistemas.invernadero.shared.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

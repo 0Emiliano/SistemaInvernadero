@@ -1,4 +1,4 @@
-package com.greenhouse.sensors.core.responses;
+package com.sistemas.invernadero.core.responses;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

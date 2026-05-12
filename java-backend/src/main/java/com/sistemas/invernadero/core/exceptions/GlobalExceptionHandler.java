@@ -1,6 +1,6 @@
-package com.greenhouse.sensors.core.exceptions;
+package com.sistemas.invernadero.core.exceptions;
 
-import com.greenhouse.sensors.core.responses.ApiResponse;
+import com.sistemas.invernadero.core.responses.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

@@ -1,6 +1,6 @@
-package com.greenhouse.sensors.modules.ingestion.adapters;
+package com.sistemas.invernadero.modules.ingestion.adapters;
 
-import com.greenhouse.sensors.shared.model.SensorReading;
+import com.sistemas.invernadero.shared.model.SensorReading;
 import org.springframework.stereotype.Component;
 import java.time.LocalDateTime;
 import java.nio.ByteBuffer;
