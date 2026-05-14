@@ -1,0 +1,130 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sensor-simulator-script
+  namespace: invernadero
+data:
+  simulator.py: |
+    #!/usr/bin/env python3
+    import pika
+    import json
+    import time
+    import random
+    from datetime import datetime
+    
+    def run_simulator():
+        """Continuous sensor data simulator"""
+        try:
+            credentials = pika.PlainCredentials('invernadero', 'rabbitmq-secure-password-change-me')
+            connection = pika.BlockingConnection(
+                pika.ConnectionParameters(
+                    host='rabbitmq-service',
+                    port=5672,
+                    credentials=credentials,
+                    connection_attempts=5,
+                    retry_delay=2
+                )
+            )
+            channel = connection.channel()
+            
+            # Simulate 3 greenhouses with 2 sensors each
+            greenhouses = [
+                {"id": "GW-001", "sensors": [{"id": "S01", "base_temp": 28}, {"id": "S02", "base_temp": 24}]},
+                {"id": "GW-002", "sensors": [{"id": "S01", "base_temp": 20}, {"id": "S02", "base_temp": 22}]},
+                {"id": "GW-003", "sensors": [{"id": "S01", "base_temp": 26}, {"id": "S02", "base_temp": 25}]},
+            ]
+            
+            message_count = 0
+            print("Sensor Simulator Started")
+            print("=" * 60)
+            
+            while True:
+                for greenhouse in greenhouses:
+                    for sensor in greenhouse["sensors"]:
+                        # Simulate realistic sensor data with slight variations
+                        temp = sensor["base_temp"] + random.uniform(-2, 3)
+                        humidity = 60 + random.uniform(-10, 10)
+                        
+                        message = {
+                            "sensorId": sensor["id"],
+                            "greenhouseId": greenhouse["id"],
+                            "temperature": round(temp, 1),
+                            "humidity": round(humidity, 1),
+                            "manufacturer": "BOSCH",
+                            "timestamp": datetime.utcnow().isoformat() + "Z"
+                        }
+                        
+                        routing_key = f"invernadero.{greenhouse['id']}.{sensor['id']}"
+                        
+                        channel.basic_publish(
+                            exchange='invernadero.telemetry.exchange',
+                            routing_key=routing_key,
+                            body=json.dumps(message),
+                            properties=pika.BasicProperties(content_type='application/json')
+                        )
+                        
+                        message_count += 1
+                        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        print(f"[{timestamp}] [{message_count:5d}] {greenhouse['id']}/{sensor['id']}: {temp:6.1f}C {humidity:5.1f}%")
+                
+                # Send every 30 seconds
+                time.sleep(30)
+        
+        except KeyboardInterrupt:
+            print("\nSimulator stopped")
+        except Exception as e:
+            print(f"Error: {e}")
+            time.sleep(5)
+            run_simulator()
+
+    if __name__ == "__main__":
+        run_simulator()
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sensor-simulator
+  namespace: invernadero
+  labels:
+    app: sensor-simulator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sensor-simulator
+  template:
+    metadata:
+      labels:
+        app: sensor-simulator
+    spec:
+      serviceAccountName: default
+      containers:
+      - name: simulator
+        image: python:3.11-slim
+        imagePullPolicy: IfNotPresent
+        command: 
+          - /bin/sh
+          - -c
+          - |
+            pip install pika > /dev/null 2>&1
+            python /simulator/simulator.py
+        volumeMounts:
+        - name: simulator-script
+          mountPath: /simulator
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "200m"
+            memory: "256Mi"
+        env:
+        - name: PYTHONUNBUFFERED
+          value: "1"
+      volumes:
+      - name: simulator-script
+        configMap:
+          name: sensor-simulator-script
+          defaultMode: 0755
+      restartPolicy: Always

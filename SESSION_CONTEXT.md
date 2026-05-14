@@ -267,3 +267,153 @@ Reglas:
 - Agregar Ingress y TLS si se despliega publicamente.
 - Agregar estrategia de backups para TimescaleDB.
 - Agregar manifests de migracion/seed o job de verificacion end-to-end.
+
+## Sesion 3 - Despliegue Kubernetes completo y validacion end-to-end
+
+### Lo que se hizo
+
+**Despliegue Kubernetes en Docker Desktop**:
+- Se detectó e inicio Docker Desktop con Kubernetes habilitado (v1.34.1).
+- Se aplicaron manifiestos Kubernetes en orden correcto:
+  - `kubectl apply -f k8s/namespace.yaml` → namespace `invernadero` creado.
+  - `kubectl apply -f k8s/configmaps-secrets.yaml` → ConfigMap y Secrets con credenciales (invernadero/rabbitmq-secure-password-change-me, admin/password).
+  - `kubectl apply -f k8s/persistent-volumes.yaml` → PVC para TimescaleDB (10Gi) y RabbitMQ (5Gi).
+  - `kubectl apply -f k8s/postgres.yaml` → Deployment TimescaleDB v15-alpine.
+  - `kubectl apply -f k8s/rabbitmq.yaml` → Deployment RabbitMQ v3.13-management (con correccion de probes).
+  - `kubectl apply -f k8s/backend.yaml` → Deployment backend (3 replicas).
+  - `kubectl apply -f k8s/frontend.yaml` → Deployment frontend (2 replicas).
+  - `kubectl apply -f k8s/autoscaling.yaml` → HPA para backend y frontend.
+  - `kubectl apply -f k8s/disruption-budgets.yaml` → PDB para HA.
+
+**Correcciones realizadas**:
+- Se modifico `k8s/rabbitmq.yaml`: cambio de livenessProbe exec a healthcheck con timeout de 5s, readinessProbe cambiado de exec a tcpSocket en puerto 5672.
+- Se actualizaron `k8s/backend.yaml` y `k8s/frontend.yaml` para usar imagenes locales con `imagePullPolicy: Never` en lugar de GCR.
+
+**Compilacion de imagenes Docker**:
+- `docker build -t invernadero-backend:latest ./java-backend` → exitoso, imagen ~528MB compilada.
+- `docker build -t invernadero-frontend:latest .` → exitoso, imagen ~74.7MB compilada, Vite build exitoso.
+
+**Port-forwarding para acceso**:
+- Se iniciaron 4 background jobs con `kubectl port-forward`:
+  - Backend API: `svc/invernadero-api-service 8080:80 --address=0.0.0.0`
+  - Frontend: `svc/invernadero-frontend-service 3000:80 --address=0.0.0.0`
+  - RabbitMQ Management: `svc/rabbitmq-management 15672:15672 --address=0.0.0.0`
+  - RabbitMQ AMQP: `svc/rabbitmq-service 5672:5672 --address=127.0.0.1`
+
+**Validacion end-to-end**:
+- Se creo `publish_test_data.py`: Script Python con pika para publicar 10 mensajes de telemetria a RabbitMQ.
+- Se enviaron 10 lecturas de sensores (temp 25.5-36.5°C, humidity 60-72%) al exchange `invernadero.telemetry.exchange` con routing key `invernadero.GW-001.S01`.
+- Se verifico en logs backend:
+  - AlarmService procesa todos 10 mensajes.
+  - ALERTA CRITICA disparada a 36.5°C (umbral: 35°C).
+  - Accion: "Correo enviado a los responsables del sector."
+  - PersistenceService inserta registros en tabla `mediciones` con Hibernate SQL inserts.
+- Se testeo API endpoint `GET /api/v1/analytics/dashboard/GW-001`:
+  - Respuesta JSON valida con `success: true`.
+  - `recentReadings`: 11 registros (10 enviados + 1 duplicado en insert inicial).
+  - `averageTemperature24h`: 29.827°C calculado correctamente.
+  - Respuesta en < 500ms.
+
+**Documentacion completada**:
+- Se creo `K8S_ACCESS_GUIDE.md`: Guia de acceso con URLs, credenciales, endpoints, troubleshooting.
+- Se creo `BACKEND_API_GUIDE.md`: Documentacion de endpoints REST, explicacion del error 404 en raiz.
+- Se creo `SYSTEM_READY.md`: Status actual, acceso a servicios, metricas, architecture diagram, produccion checklist.
+- Se creo `PHASE_1_COMPLETE.md`: Resultados validacion, flujo end-to-end, metricas DB, status de componentes.
+- Se creo `NEXT_STEPS_ROADMAP.md`: Plan de 8 fases (validation, simulator, db optimization, security, monitoring, testing, CI/CD, production checklist) con timeline y ejemplos de codigo.
+- Se creo `PROJECT_ANALYSIS.md`: Analisis profundo de arquitectura, stack, estructura carpetas, modulos backend, puertos, kubernetes, roadmap.
+
+### Lo que hay actualmente
+
+**Kubernetes Deployment**:
+- Namespace `invernadero` activo.
+- 7 pods running: 3 backend, 2 frontend, 1 rabbitmq, 1 timescaledb.
+- Todos con status `1/1 Running` y healthy (readiness/liveness passing).
+- Services: 3 LoadBalancer (frontend-lb, api-lb, rabbitmq-management), 4 ClusterIP (frontend-service, api-service, rabbitmq-service, timescaledb-service).
+- HPA: backend escala 2-5 replicas (70% CPU / 80% memory), frontend escala 2-4 replicas (75% CPU).
+- PDB: minAvailable 1 para backend y frontend.
+
+**Base de datos**:
+- TimescaleDB con tabla `mediciones` como hypertable.
+- 11 registros persistidos (10 test + 1 inicial).
+- Rangos: temperatura 25.5-36.5°C, humedad 60-72%, todos con timestamp y metadata (sensorId, greenhouseId, manufacturer).
+- Queries SQL funcionan correctamente via Hibernate.
+
+**Mensajeria**:
+- RabbitMQ operativo con exchange `invernadero.telemetry.exchange` (topic type).
+- Queues creadas: `alarm.queue`, `persistence.queue`.
+- Routing key: `invernadero.{greenhouse}.{sensor}` funcionando.
+- Management UI accesible en http://localhost:15672 (credenciales: invernadero/rabbitmq-secure-password-change-me).
+
+**API Backend**:
+- Spring Boot respondiendo en http://localhost:8080.
+- `/api/v1/analytics/dashboard/GW-001` retorna datos reales agregados.
+- `/actuator/health` retorna `{"status":"UP"}`.
+- Alarms service procesando mensajes y disparando alertas por umbral.
+- Persistence service guardando correctamente en DB.
+- Response times < 500ms.
+
+**Frontend**:
+- React app accesible en http://localhost:3000.
+- Nginx proxy configurado para redirigir `/api` al backend interno.
+- Puede consumir datos reales del endpoint analytics.
+
+**Acceso externo**:
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:8080
+- RabbitMQ: http://localhost:15672
+- Health: http://localhost:8080/actuator/health
+
+### Lo que se verifico
+
+- `kubectl cluster-info`: Docker Desktop Kubernetes operativo en https://kubernetes.docker.internal:6443.
+- `kubectl get all -n invernadero`: 7 pods running, 4 services activos, 2 HPA, 2 PDB definidos.
+- `kubectl get pods -n invernadero -o wide`: Todos los pods en status `1/1 Running`, IPs internas asignadas correctamente.
+- Logs backend: AlarmService y PersistenceService procesando 10 mensajes sin errores, 1 alerta critica disparada, inserts SQL exitosos.
+- API response: `GET /api/v1/analytics/dashboard/GW-001` retorna 11 records con estructura JSON valida, temperaturasCorrectas.
+- Servicios accesibles via port-forward: Frontend en 3000, Backend en 8080, RabbitMQ Management en 15672, AMQP en 5672.
+- Health check: `http://localhost:8080/actuator/health` retorna `{\"status\":\"UP\"}`.
+- Database: 11 registros observados en logs (Hibernate inserts), average temperatura 29.83°C confirmado en API response.
+
+### Lo que NO esta validado aun
+
+- Visualizacion del frontend: No se verificó directamente que las graficas de React/Recharts muestren datos reales (puede estar usando mock aún).
+- Query directa a DB: No se consultó timescaledb via psql directamente (límite de conexiones en K8s), pero logs confirman persistencia.
+- Escalado dinámico: No se triggered HPA (no hay carga sostenida que cause scaling).
+- Multi-greenhouse/multi-sensor: Solo probado GW-001/S01, no se verificó multi-tenant behavior.
+- TCP ingestion: Puerto 9000 configurado pero no probado (solo testeado RabbitMQ HTTP vía REST).
+- TLS/SSL: Servicios sin encryption, solo HTTP.
+- Autenticacion: Endpoints sin JWT aún, solo acceso abierto.
+- Backup/restore: No probado esquema de recuperacion de datos.
+- Despliegue remoto: Solo validado en Docker Desktop local.
+
+### Lo que faltaria implementar o mejorar
+
+**Inmediato (hoy/mañana)**:
+- Verificar visualmente que frontend en http://localhost:3000 muestra graficos con datos reales y no mock.
+- Crear sensor simulator permanente (Python/Java como K8s Deployment o CronJob) para enviar datos continuamente.
+- Agregar indices DB: `CREATE INDEX idx_greenhouse_timestamp ON mediciones(greenhouse_id, timestamp DESC)`.
+- Cambiar todas las credenciales default antes de cualquier uso de produccion.
+
+**Corto plazo (esta semana)**:
+- Implementar autenticacion JWT en endpoints `/api/v1/**`.
+- Setup Prometheus + Grafana para monitoreo en tiempo real.
+- Crear runbooks y playbooks para operadores.
+- Agregar pruebas unitarias e integracion (adapters, RabbitMQ, persistence, analytics).
+- Probar flujo multi-greenhouse y multi-sensor.
+
+**Mediano plazo (proximas 2 semanas)**:
+- Agregar Ingress controller + TLS con cert-manager para acceso remoto.
+- Setup CI/CD pipeline (GitHub Actions o similar) para build/push de imagenes a registry.
+- Implementar backup automatizado de TimescaleDB (diario).
+- Load testing: verificar sistema bajo carga (100+ sensores concurrentes).
+- Despliegue en cluster multi-nodo (EKS/GKE/AKS si aplica).
+
+**Largo plazo (produccion)**:
+- Migracion de datos historicos si existe DB legacy.
+- Notificaciones email reales (reemplazar logger por servicio real).
+- Metricas de negocio (dashboard de operadores, SLA reporting).
+- Escalabilidad: cache (Redis), DB sharding, message queue backpressure.
+
+### Commits y push
+
+- No se realizaron commits de los archivos generados aún. El repositorio queda en estado limpio sin push; se sugiere revisar los archivos generados y hacer commit cuando se confirme que todo es correcto.

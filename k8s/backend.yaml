@@ -24,8 +24,8 @@ spec:
     spec:
       containers:
       - name: backend
-        image: gcr.io/invernadero-pro/backend:latest
-        imagePullPolicy: Always
+        image: invernadero-backend:latest
+        imagePullPolicy: Never
         ports:
         - name: api
           containerPort: 8080
