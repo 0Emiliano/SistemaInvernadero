@@ -1,0 +1,8 @@
+.git
+dist
+node_modules
+java-backend
+k8s
+*.log
+.env*
+!.env.example

@@ -190,3 +190,80 @@ Reglas:
 - Si el sistema no fue probado end-to-end, dilo explicitamente.
 - Despues de actualizar el archivo, ejecuta las verificaciones relevantes, haz commit y pushea si el usuario lo solicita.
 ```
+
+## Sesion 2 - Kubernetes alineado al proyecto real
+
+### Lo que se hizo
+
+- Se revisaron los manifiestos generados en `k8s/`.
+- Se corrigio Kubernetes para coincidir con la arquitectura real del proyecto:
+  - Backend Spring Boot en `8080`.
+  - TCP ingestion en `9000`.
+  - RabbitMQ como broker.
+  - TimescaleDB como base de series de tiempo.
+  - Frontend React/Vite servido como build estatico con Nginx.
+- Se agrego `spring-boot-starter-actuator` al backend para soportar health checks Kubernetes.
+- Se agregaron propiedades de Actuator en `java-backend/src/main/resources/application.properties`.
+- Se actualizo `schema.sql` para crear la extension `timescaledb` antes de crear la hypertable.
+- Se corrigio `k8s/configmaps-secrets.yaml`:
+  - URL JDBC ahora apunta a `timescaledb-service`.
+  - Base de datos alineada a `invernadero_db`.
+  - Usuario DB alineado a `admin`.
+  - Se agrego configuracion de Actuator y SQL init para Kubernetes.
+- Se corrigio `k8s/postgres.yaml` para desplegar TimescaleDB con `timescale/timescaledb:latest-pg15`.
+- Se corrigieron nombres de PVC/servicio a `timescaledb-pvc` y `timescaledb-service`.
+- Se corrigio `k8s/backend.yaml`:
+  - DB host a `timescaledb-service`.
+  - Credenciales RabbitMQ mapeadas a `SPRING_RABBITMQ_USERNAME` y `SPRING_RABBITMQ_PASSWORD`.
+  - Probes a `/actuator/health/liveness` y `/actuator/health/readiness`.
+- Se agrego Dockerfile productivo del frontend en la raiz del repo.
+- Se agrego `nginx.conf` para servir el frontend y proxyear `/api/` hacia `invernadero-api-service`.
+- Se agrego `.dockerignore` para builds de frontend mas limpios.
+- Se corrigio `k8s/frontend.yaml` para usar contenedor en puerto `8080` con Nginx no privilegiado.
+- Se rehizo `k8s/DEPLOYMENT.md` con pasos reales de build, deploy, verificacion y limitaciones.
+- Se reemplazo `K8S_MANIFEST.yml` por una nota de deprecacion que apunta a `k8s/`.
+- Se actualizo `README.md` para mencionar `k8s/DEPLOYMENT.md`, Dockerfile frontend y build Docker del frontend.
+
+### Lo que hay actualmente
+
+- Manifiestos Kubernetes completos en `k8s/`.
+- Backend preparado para health checks de Kubernetes via Actuator.
+- TimescaleDB configurado como runtime de base de datos en Kubernetes.
+- RabbitMQ configurado con PVC, servicio interno y LoadBalancer para management UI.
+- Frontend preparado para imagen Docker productiva con Nginx unprivileged.
+- Nginx del frontend proxya `/api/` hacia el backend interno `invernadero-api-service`.
+- `K8S_MANIFEST.yml` queda como entrada de compatibilidad/deprecacion; la fuente real es `k8s/`.
+
+### Lo que se verifico
+
+- Se inspeccionaron todos los manifiestos `k8s/*.yaml`.
+- `npm.cmd run lint`: exitoso.
+- `npm.cmd run build`: exitoso.
+  - Queda advertencia no bloqueante por chunk grande, esperable por Recharts.
+- `docker build -t sistema-invernadero-backend:verify .` dentro de `java-backend`: exitoso.
+- `docker build -t sistema-invernadero-frontend:verify .` desde la raiz del repo: exitoso.
+- Se intento `kubectl apply --dry-run=client -f k8s/`, pero no hay cluster Kubernetes activo/configurado; `kubectl` intento conectar a `localhost:8080` y fallo.
+- Se intento `kubectl apply --dry-run=client --validate=false -f k8s/`, pero `kubectl` igualmente intento descubrir recursos contra `localhost:8080` y fallo por falta de API server.
+- La validacion real pendiente debe hacerse contra un cluster activo.
+
+### Lo que NO esta validado aun
+
+- No se ha desplegado en un cluster Kubernetes real.
+- No se ha validado pull de imagenes desde un registry real.
+- No se ha probado que los pods pasen readiness/liveness en cluster.
+- No se ha validado el flujo completo:
+  - Frontend LoadBalancer -> Nginx -> `/api/`
+  - Backend service
+  - RabbitMQ
+  - TimescaleDB
+  - Dashboard con datos persistidos
+
+### Lo que faltaria implementar o mejorar
+
+- Publicar imagenes reales de backend y frontend en un registry.
+- Reemplazar `gcr.io/invernadero-pro/*:latest` por URLs reales.
+- Cambiar passwords placeholder en `k8s/configmaps-secrets.yaml`.
+- Probar `kubectl apply -f k8s/` contra un cluster real.
+- Agregar Ingress y TLS si se despliega publicamente.
+- Agregar estrategia de backups para TimescaleDB.
+- Agregar manifests de migracion/seed o job de verificacion end-to-end.

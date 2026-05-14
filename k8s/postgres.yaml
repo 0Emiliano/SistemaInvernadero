@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: timescaledb
+  namespace: invernadero
+  labels:
+    app: timescaledb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: timescaledb
+  template:
+    metadata:
+      labels:
+        app: timescaledb
+    spec:
+      containers:
+      - name: timescaledb
+        image: timescale/timescaledb:latest-pg15
+        ports:
+        - containerPort: 5432
+          name: postgres
+        envFrom:
+        - secretRef:
+            name: invernadero-db-secret
+        volumeMounts:
+        - name: timescaledb-storage
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+        livenessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - pg_isready -U $POSTGRES_USER
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - pg_isready -U $POSTGRES_USER
+          initialDelaySeconds: 10
+          periodSeconds: 5
+      volumes:
+      - name: timescaledb-storage
+        persistentVolumeClaim:
+          claimName: timescaledb-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: timescaledb-service
+  namespace: invernadero
+spec:
+  selector:
+    app: timescaledb
+  ports:
+  - port: 5432
+    targetPort: 5432
+    protocol: TCP
+  type: ClusterIP

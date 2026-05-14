@@ -1,4 +1,6 @@
 -- Crear la tabla base si no existe (Spring Data JPA usualmente la crea, pero aquí aseguramos tipos)
+CREATE EXTENSION IF NOT EXISTS timescaledb;
+
 CREATE TABLE IF NOT EXISTS mediciones (
     id BIGSERIAL,
     sensor_id TEXT NOT NULL,

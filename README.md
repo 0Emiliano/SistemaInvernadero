@@ -143,6 +143,8 @@ persistence.queue
 - RabbitMQ Management
 - TimescaleDB sobre PostgreSQL 15
 - Kubernetes manifest base
+  - Manifiestos completos en `k8s/`
+  - Frontend productivo servido con Nginx y proxy `/api`
 
 ## Estructura del repositorio
 
@@ -171,6 +173,15 @@ persistence.queue
 |   |-- docker-compose.yml
 |   `-- pom.xml
 |-- K8S_MANIFEST.yml
+|-- k8s/
+|   |-- DEPLOYMENT.md
+|   |-- backend.yaml
+|   |-- frontend.yaml
+|   |-- postgres.yaml
+|   |-- rabbitmq.yaml
+|   `-- autoscaling.yaml
+|-- Dockerfile
+|-- nginx.conf
 |-- SESSION_CONTEXT.md
 |-- DOCUMENTACION_ARQUITECTURA.md
 |-- CONFIGURACION_TOTAL.md
@@ -402,6 +413,14 @@ Desde `java-backend`:
 docker build -t sistema-invernadero-backend:verify .
 ```
 
+### Frontend build con Docker
+
+Desde la raiz del proyecto:
+
+```powershell
+docker build -t sistema-invernadero-frontend:verify .
+```
+
 ## Endpoints principales
 
 ### Analytics dashboard
@@ -574,6 +593,7 @@ Antes de declarar el sistema 100% funcional en conjunto, falta confirmar:
 - [CONFIGURACION_TOTAL.md](./CONFIGURACION_TOTAL.md): guia ampliada de configuracion.
 - [RUN_LOCAL.md](./RUN_LOCAL.md): guia rapida de ejecucion local.
 - [INFRA_STANDARDS.md](./INFRA_STANDARDS.md): estandares de infraestructura.
+- [k8s/DEPLOYMENT.md](./k8s/DEPLOYMENT.md): despliegue Kubernetes completo.
 - [AGENTS.md](./AGENTS.md): reglas de proyecto para agentes.
 - [AGENT_TASKS.md](./AGENT_TASKS.md): distribucion de tareas por dominio.
 - [PROJECT_SKILLS.md](./PROJECT_SKILLS.md): conocimiento y workflows del proyecto.

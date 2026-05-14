@@ -1,0 +1,21 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: backend-pdb
+  namespace: invernadero
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: invernadero-backend
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: frontend-pdb
+  namespace: invernadero
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: invernadero-frontend
