@@ -8,8 +8,8 @@ import org.springframework.context.annotation.Configuration;
 public class RabbitConfig {
 
     public static final String EXCHANGE_NAME = "invernadero.telemetry.exchange";
-    public static final String ALARM_QUEUE = "alarm.service.queue";
-    public static final String PERSISTENCE_QUEUE = "persistence.service.queue";
+    public static final String ALARM_QUEUE = "alarm.queue";
+    public static final String PERSISTENCE_QUEUE = "persistence.queue";
     public static final String ROUTING_PATTERN = "invernadero.#";
 
     @Bean

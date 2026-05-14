@@ -32,9 +32,8 @@ public class TcpServerConfig {
     @Bean
     public IntegrationFlow tcpFlow() {
         return IntegrationFlow.from("tcpInputChannel")
-                .handle(message -> {
+                .handle(byte[].class, (payload, headers) -> {
                     try {
-                        byte[] payload = (byte[]) message.getPayload();
                         // En un escenario real, el greenhouseId y manufacturer vendrían en el preámbulo del binario
                         // Para el MVP usamos constantes o valores del sistema
                         ingestionController.ingestTelemetry("GW-001", "BOSCH", payload);

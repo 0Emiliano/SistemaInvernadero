@@ -1,17 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, AreaChart, Area 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area 
 } from 'recharts';
 import { 
-  Thermometer, Droplets, AlertTriangle, Activity, LayoutDashboard, Settings, ClipboardList
+  Thermometer, Droplets, AlertTriangle, Activity, LayoutDashboard
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { analyticsService } from '../services/analyticsService';
+import { analyticsService, SensorReading } from '../services/analyticsService';
+
+interface ChartPoint {
+  time: string;
+  temp: number;
+  hum: number;
+}
 
 const Dashboard = () => {
-  const [data, setData] = useState<any[]>([]);
+  const [data, setData] = useState<ChartPoint[]>([]);
   const [stats, setStats] = useState({ avgTemp: 0, alerts: 0, activeSensors: 0 });
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadData = async () => {
@@ -19,7 +24,7 @@ const Dashboard = () => {
         const response = await analyticsService.getDashboardData('GW-001');
         
         // Transformar datos de la API al formato de Recharts
-        const chartData = response.recentReadings.map((r: any) => ({
+        const chartData = response.recentReadings.map((r: SensorReading) => ({
           time: new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           temp: r.temperature,
           hum: r.humidity
@@ -36,8 +41,8 @@ const Dashboard = () => {
         // Fallback a mock en caso de error (desarrollo local)
         const mockData = Array.from({ length: 24 }).map((_, i) => ({
           time: `${i}:00`,
-          temp: (22 + Math.random() * 8).toFixed(1),
-          hum: (60 + Math.random() * 15).toFixed(1),
+          temp: Number((22 + Math.random() * 8).toFixed(1)),
+          hum: Number((60 + Math.random() * 15).toFixed(1)),
         }));
         setData(mockData);
         setStats({
@@ -45,8 +50,6 @@ const Dashboard = () => {
           alerts: 3,
           activeSensors: 12
         });
-      } finally {
-        setLoading(false);
       }
     };
 

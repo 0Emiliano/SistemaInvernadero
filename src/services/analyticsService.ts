@@ -2,8 +2,18 @@ import axios from 'axios';
 
 const API_BASE_URL = '/api/v1/analytics';
 
+export interface SensorReading {
+  id?: number;
+  sensorId: string;
+  greenhouseId: string;
+  temperature: number;
+  humidity: number;
+  manufacturer: string;
+  timestamp: string;
+}
+
 export interface DashboardData {
-  recentReadings: any[];
+  recentReadings: SensorReading[];
   averageTemperature24h: number;
   period: string;
 }

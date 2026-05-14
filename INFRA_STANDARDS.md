@@ -12,7 +12,7 @@ This document defines the technical standards for the deployment and operation o
 *   **Resources:** Mandatory `limits` and `requests`. Default: `requests: 256Mi, limits: 512Mi`.
 *   **Health Checks:**
     - `LivenessProbe`: Check if the process is alive.
-    - `ReadinessProbe`: Check if the service is ready to accept traffic (TCP 9000 or HTTP 3000).
+    - `ReadinessProbe`: Check if the service is ready to accept traffic (TCP 9000 or HTTP 8080).
 *   **Storage:** Use `PersistentVolumeClaims` for TimescaleDB data persistence in cluster environments.
 *   **Configuration:** Use `ConfigMaps` for non-sensitive data and `Secrets` for database credentials.
 
@@ -30,7 +30,7 @@ This document defines the technical standards for the deployment and operation o
 *   **Retention Policy:** Implement automatic data compression for chunks older than 30 days.
 
 ## 4. Backend (Spring Boot)
-*   **Port Mapping:** Internal `3000` for API, `9000` for TCP ingestion.
+*   **Port Mapping:** Internal `8080` for API, `9000` for TCP ingestion.
 *   **Health Checks:** Actuator must be enabled.
 *   **Logging:** JSON format for production logs, human-readable for dev.
 

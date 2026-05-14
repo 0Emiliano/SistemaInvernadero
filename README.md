@@ -6,6 +6,8 @@
 
 This contains everything you need to run your app locally.
 
+Project/session context: see [SESSION_CONTEXT.md](./SESSION_CONTEXT.md) for the current architecture summary, recent fixes, verification notes, and suggested next steps.
+
 View your app in AI Studio: https://ai.studio/apps/72457ca3-1383-47ce-9cb0-44fd1bafbf73
 
 ## Run Locally
