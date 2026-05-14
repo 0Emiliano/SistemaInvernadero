@@ -1,0 +1,28 @@
+{
+  "automation": {
+    "onSave": {
+      "java": [
+        "mvn compile"
+      ],
+      "typescript": [
+        "npm run build"
+      ],
+      "all": [
+        "npm run lint"
+      ]
+    },
+    "onCommit": [
+      "mvn test",
+      "docker-compose build --no-cache"
+    ],
+    "onDeployment": [
+      "deploy_to_cloud_run"
+    ]
+  },
+  "triggers": {
+    "telemetryThreshold": {
+      "condition": "temperature > 35.0",
+      "action": "trigger_alarm_notification"
+    }
+  }
+}

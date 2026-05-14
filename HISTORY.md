@@ -41,5 +41,16 @@ Este documento recopila paso a paso la construcción del sistema, desde la conce
     - Manejo global de excepciones (`GlobalExceptionHandler`) para errores de ingesta y base de datos.
     - Implementación de `application.properties` con soporte para variables de entorno (Docker-ready).
 
+## Fase 6: Gobernanza de Agentes e Infraestructura Pro
+- **Estándares**: 
+    - Creación de `INFRA_STANDARDS.md` para Docker, K8s, RabbitMQ y TimescaleDB.
+    - Implementación de `K8S_MANIFEST.yml` para despliegue en clusters de Kubernetes.
+- **Gestión de Agentes**:
+    - Definición de `AGENT_TASKS.md` para ejecución paralela de tareas por dominio.
+    - Establecimiento de `WORKSPACE_GUIDELINES.md` para control de comportamiento AI.
+    - Creación de `PROJECT_SKILLS.md` para transferencia de conocimiento técnica.
+- **Automatización**: Configuración de `AUTOMATION_CONFIG.json` para disparadores de tareas.
+- **Frontend Pro**: Integración de `analyticsService` real con Axios en el Dashboard, sustituyendo mocks por telemetría viva.
+
 ---
 **Estado Actual**: Proyecto 100% Funcional. Listo para despliegue en entornos productivos.

@@ -17,17 +17,26 @@ public class PersistenceService {
 
     @RabbitListener(queues = RabbitConfig.PERSISTENCE_QUEUE)
     public void persistReading(SensorReading reading) {
+        if (reading == null || reading.getSensorId() == null) {
+            log.error("[PERSISTENCE] Recibida lectura nula o sin SensorID. Ignorando.");
+            return;
+        }
+
         log.info("[PERSISTENCE] Guardando lectura de sensor: {}", reading.getSensorId());
         
-        SensorReadingEntity entity = SensorReadingEntity.builder()
-                .sensorId(reading.getSensorId())
-                .greenhouseId(reading.getGreenhouseId())
-                .temperature(reading.getTemperature())
-                .humidity(reading.getHumidity())
-                .manufacturer(reading.getManufacturer())
-                .timestamp(reading.getTimestamp())
-                .build();
+        try {
+            SensorReadingEntity entity = SensorReadingEntity.builder()
+                    .sensorId(reading.getSensorId())
+                    .greenhouseId(reading.getGreenhouseId())
+                    .temperature(reading.getTemperature())
+                    .humidity(reading.getHumidity())
+                    .manufacturer(reading.getManufacturer())
+                    .timestamp(reading.getTimestamp() != null ? reading.getTimestamp() : LocalDateTime.now())
+                    .build();
 
-        repository.save(entity);
+            repository.save(entity);
+        } catch (Exception e) {
+            log.error("[PERSISTENCE] Error fatal guardando en TimescaleDB: {}", e.getMessage());
+        }
     }
 }

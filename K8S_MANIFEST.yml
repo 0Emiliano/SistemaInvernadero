@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: invernadero-backend
+  labels:
+    app: invernadero
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: invernadero
+  template:
+    metadata:
+      labels:
+        app: invernadero
+    spec:
+      containers:
+      - name: backend
+        image: gcr.io/invernadero-pro/backend:latest
+        ports:
+        - containerPort: 3000
+        - containerPort: 9000
+        env:
+        - name: DB_HOST
+          value: "timescaledb-service"
+        - name: RABBIT_HOST
+          value: "rabbitmq-service"
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "1Gi"
+          requests:
+            cpu: "250m"
+            memory: "512Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: invernadero-service
+spec:
+  selector:
+    app: invernadero
+  ports:
+    - name: api
+      protocol: TCP
+      port: 80
+      targetPort: 3000
+    - name: tcp-ingestion
+      protocol: TCP
+      port: 9000
+      targetPort: 9000
+  type: LoadBalancer

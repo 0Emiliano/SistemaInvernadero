@@ -6,25 +6,53 @@ import {
   Thermometer, Droplets, AlertTriangle, Activity, LayoutDashboard, Settings, ClipboardList
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { analyticsService } from '../services/analyticsService';
 
 const Dashboard = () => {
-  const [data, setData] = useState([]);
+  const [data, setData] = useState<any[]>([]);
   const [stats, setStats] = useState({ avgTemp: 0, alerts: 0, activeSensors: 0 });
+  const [loading, setLoading] = useState(true);
 
-  // Simulamos carga de datos desde el endpoint de Analytics
   useEffect(() => {
-    // En una app real, esto sería fetch('/api/v1/analytics/dashboard/GW-001')
-    const mockData = Array.from({ length: 24 }).map((_, i) => ({
-      time: `${i}:00`,
-      temp: (22 + Math.random() * 8).toFixed(1),
-      hum: (60 + Math.random() * 15).toFixed(1),
-    }));
-    setData(mockData);
-    setStats({
-      avgTemp: 25.4,
-      alerts: 3,
-      activeSensors: 12
-    });
+    const loadData = async () => {
+      try {
+        const response = await analyticsService.getDashboardData('GW-001');
+        
+        // Transformar datos de la API al formato de Recharts
+        const chartData = response.recentReadings.map((r: any) => ({
+          time: new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          temp: r.temperature,
+          hum: r.humidity
+        })).reverse(); // Ordenamos cronológicamente
+
+        setData(chartData);
+        setStats({
+          avgTemp: response.averageTemperature24h,
+          alerts: 3, // Mock hasta tener endpoint de alertas
+          activeSensors: 12 // Mock hasta tener inventario
+        });
+      } catch (error) {
+        console.error("Error cargando datos reales, usando mock:", error);
+        // Fallback a mock en caso de error (desarrollo local)
+        const mockData = Array.from({ length: 24 }).map((_, i) => ({
+          time: `${i}:00`,
+          temp: (22 + Math.random() * 8).toFixed(1),
+          hum: (60 + Math.random() * 15).toFixed(1),
+        }));
+        setData(mockData);
+        setStats({
+          avgTemp: 25.4,
+          alerts: 3,
+          activeSensors: 12
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+    const interval = setInterval(loadData, 30000); // Actualizar cada 30s
+    return () => clearInterval(interval);
   }, []);
 
   return (

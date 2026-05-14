@@ -34,3 +34,11 @@ Cualquier nuevo módulo debe seguir esta jerarquía:
 
 ### Referencia Histórica
 Este proyecto hereda la lógica de validación y seguridad del repositorio `api-tattoo` de @0Emiliano, pero adaptándola a un entorno de backend distribuido de alta frecuencia y monitoreo industrial.
+
+## 🛠️ Infraestructura y Gestión de Agentes
+Para escalar el desarrollo y asegurar la consistencia, todos los agentes deben seguir estos documentos:
+*   **[INFRA_STANDARDS.md](./INFRA_STANDARDS.md):** Estándares de Docker, RabbitMQ y TimescaleDB.
+*   **[AGENT_TASKS.md](./AGENT_TASKS.md):** Delegación de tareas paralelas por dominio.
+*   **[WORKSPACE_GUIDELINES.md](./WORKSPACE_GUIDELINES.md):** Control de comportamiento y calidad de código.
+*   **[PROJECT_SKILLS.md](./PROJECT_SKILLS.md):** Reutilización de conocimiento en el ecosistema.
+*   **[AUTOMATION_CONFIG.json](./AUTOMATION_CONFIG.json):** Disparadores de tareas automáticas.
