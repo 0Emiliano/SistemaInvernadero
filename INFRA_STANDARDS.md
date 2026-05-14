@@ -2,14 +2,19 @@
 
 This document defines the technical standards for the deployment and operation of the greenhouse system infrastructure.
 
-## 1. Containerization (Docker & Kubernetes)
+## 1. Containerization (Docker)
 *   **Base Images:** Always use slim or alpine versions for production (e.g., `openjdk:17-jdk-slim`).
 *   **Multi-stage Builds:** Mandatory for all microservices to keep image sizes small.
-*   **Networking:** Services must communicate via a dedicated internal network. 
-*   **Kubernetes (Future):** 
-    - Deployments must use `RollingUpdate` strategy.
-    - Resources must have `limits` and `requests` defined.
-    - Liveness and Readiness probes must point to `/api/health`.
+*   **Networking:** Services must communicate via a dedicated internal bridge network in Docker Compose.
+
+## 2. Orchestration (Kubernetes)
+*   **Deployment Strategy:** Use `RollingUpdate` with `maxSurge: 25%` and `maxUnavailable: 25%`.
+*   **Resources:** Mandatory `limits` and `requests`. Default: `requests: 256Mi, limits: 512Mi`.
+*   **Health Checks:**
+    - `LivenessProbe`: Check if the process is alive.
+    - `ReadinessProbe`: Check if the service is ready to accept traffic (TCP 9000 or HTTP 3000).
+*   **Storage:** Use `PersistentVolumeClaims` for TimescaleDB data persistence in cluster environments.
+*   **Configuration:** Use `ConfigMaps` for non-sensitive data and `Secrets` for database credentials.
 
 ## 2. Messaging (RabbitMQ)
 *   **Exchange Type:** `Topic` is mandatory for telemetry to allow selective routing and future scalability.

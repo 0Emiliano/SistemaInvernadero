@@ -31,7 +31,7 @@ El archivo `docker-compose.yml` es tu "plano de construcción". Para activarlo:
 Tu backend está diseñado siguiendo el patrón **Modular by Feature**.
 
 1. **Propiedades:** El archivo `src/main/resources/application.properties` ya está configurado para buscar a Docker en `localhost`.
-2. **Ejecución:** Puedes presionar `F5` en VS Code sobre la clase principal.
+2. **Ejecución:** Puedes presionar `F5` en VS Code sobre la clase principal. El servidor correrá en `http://localhost:8080`.
 3. **Ingesta:** El servidor TCP se abrirá en el puerto `9000`. Puedes probarlo enviando un string binario (usando herramientas como Packet Sender o un script simple de Python).
 
 ---
@@ -43,7 +43,7 @@ Tu backend está diseñado siguiendo el patrón **Modular by Feature**.
    npm install
    npm run dev
    ```
-2. El Dashboard se abrirá en `http://localhost:3000` (o el puerto que te indique la terminal).
+2. El Dashboard se abrirá en `http://localhost:3000`. Vite está configurado para actuar como Proxy, enviando todas las peticiones que empiecen con `/api` directamente al backend en el puerto `8080`.
 
 ---
 

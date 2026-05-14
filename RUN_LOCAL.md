@@ -18,7 +18,7 @@ Abre una **nueva terminal** (sin cerrar la anterior):
 cd java-backend
 # En VS Code, simplemente abre este folder y presiona F5 en la aplicación principal.
 ```
-*   **API REST:** Escuchando en `http://localhost:3000`.
+*   **API REST:** Escuchando en `http://localhost:8080`.
 *   **Puerto de Sensores (TCP):** Escuchando en `9000`.
 
 ## Paso 3: Ejecutar el Frontend (React)
@@ -27,7 +27,7 @@ Abre una **tercera terminal** en la raíz del proyecto:
 npm install
 npm run dev
 ```
-*   **Dashboard:** Abre la URL que te indique la terminal para ver tus gráficas de Recharts.
+*   **Dashboard:** Abre `http://localhost:3000` en tu navegador. El tráfico de `/api` se redirige automáticamente al puerto `8080`.
 
 ---
 

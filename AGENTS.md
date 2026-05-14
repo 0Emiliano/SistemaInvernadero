@@ -42,3 +42,4 @@ Para escalar el desarrollo y asegurar la consistencia, todos los agentes deben s
 *   **[WORKSPACE_GUIDELINES.md](./WORKSPACE_GUIDELINES.md):** Control de comportamiento y calidad de código.
 *   **[PROJECT_SKILLS.md](./PROJECT_SKILLS.md):** Reutilización de conocimiento en el ecosistema.
 *   **[AUTOMATION_CONFIG.json](./AUTOMATION_CONFIG.json):** Disparadores de tareas automáticas.
+
