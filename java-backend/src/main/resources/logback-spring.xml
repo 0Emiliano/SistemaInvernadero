@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <springProperty name="LOG_APP" source="spring.application.name" defaultValue="sistema-invernadero"/>
+    <springProperty name="LOG_ENV" source="spring.profiles.active" defaultValue="default"/>
+    
+    <!-- Console Appender -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Loki Appender para log aggregation -->
+    <appender name="LOKI" class="com.github.loki4j.logback.Loki4jAppender">
+        <http>
+            <url>http://loki-service:3100/loki/api/v1/push</url>
+            <connectionTimeoutMs>5000</connectionTimeoutMs>
+            <requestTimeoutMs>5000</requestTimeoutMs>
+            <maxRetries>3</maxRetries>
+        </http>
+        <format>
+            <label>
+                <pattern>app=${LOG_APP},env=${LOG_ENV},level=%level,logger=%logger{20}</pattern>
+            </label>
+            <message>
+                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg</pattern>
+            </message>
+            <sortByTime>true</sortByTime>
+            <staticLabels>app=${LOG_APP},environment=${LOG_ENV},service=backend</staticLabels>
+        </format>
+        <logstashFormat>true</logstashFormat>
+        <logstashFormatMessageFormat>%d{yyyy-MM-dd'T'HH:mm:ss.SSS'Z'}; %logger; %level; %msg</logstashFormatMessageFormat>
+    </appender>
+
+    <!-- Async Appender para Loki (no bloquea) -->
+    <appender name="ASYNC_LOKI" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="LOKI"/>
+        <queueSize>512</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+    </appender>
+
+    <!-- Logger configuration -->
+    <logger name="com.sistemas.invernadero" level="DEBUG"/>
+    <logger name="org.springframework.web" level="INFO"/>
+    <logger name="org.springframework.amqp" level="INFO"/>
+    <logger name="org.hibernate" level="WARN"/>
+
+    <!-- Root Logger -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="ASYNC_LOKI"/>
+    </root>
+</configuration>

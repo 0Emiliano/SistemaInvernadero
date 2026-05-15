@@ -1,0 +1,49 @@
+name: ArgoCD Sync Webhook
+
+on:
+  workflow_run:
+    workflows: ["Backend CI", "Frontend CI"]
+    types:
+      - completed
+    branches:
+      - main
+
+jobs:
+  argocd-sync:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Trigger ArgoCD Application Sync
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.ARGOCD_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            "${{ secrets.ARGOCD_SERVER_URL }}/api/v1/applications/invernadero/sync" \
+            -d '{
+              "syncStrategy": {
+                "hook": {}
+              },
+              "syncOptions": ["PrunePropagationPolicy=background"]
+            }'
+        continue-on-error: true
+
+      - name: Wait for sync to complete
+        run: |
+          for i in {1..60}; do
+            STATUS=$(curl -s \
+              -H "Authorization: Bearer ${{ secrets.ARGOCD_TOKEN }}" \
+              "${{ secrets.ARGOCD_SERVER_URL }}/api/v1/applications/invernadero" | jq -r '.status.operationState.phase')
+            
+            if [ "$STATUS" == "Succeeded" ]; then
+              echo "✅ Sync completed successfully"
+              exit 0
+            elif [ "$STATUS" == "Failed" ]; then
+              echo "❌ Sync failed"
+              exit 1
+            fi
+            
+            sleep 5
+          done
+          echo "⏱️  Sync still in progress..."
+        continue-on-error: true
