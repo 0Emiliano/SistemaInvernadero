@@ -1,6 +1,6 @@
 # 🌱 Sistema Invernadero
 
-Simple & Fast greenhouse monitoring system with real-time telemetry, sensor management, and live alerts.
+Simple & Fast Sistema Invernaderi monitoring system with real-time telemetry, sensor management, and live alerts.
 
 **Tech Stack**: React • Spring Boot • RabbitMQ • TimescaleDB • Docker Compose
 
