@@ -63,7 +63,7 @@ flowchart LR
         dlq["Dead Letter Queue\nPLANEADO"]
     end
 
-    ingestion -->|routing key\ninvernadero.[greenhouseId].[sensorId]| exchange
+    ingestion -->|routing key: invernadero.greenhouseId.sensorId| exchange
     demo -->|lecturas demo| exchange
     exchange --> persistenceQueue
     exchange --> alertsQueue
@@ -101,7 +101,7 @@ flowchart LR
         supaNote["TimescaleDB no disponible actualmente\nfallback PostgreSQL"]
     end
 
-    backend -. modo remoto DB_* .-> supaPg
+    backend -. modo remoto variables DB .-> supaPg
     supaPg --- supaMed
     supaPg --- supaSensors
     supaPg --- supaAlerts
@@ -145,4 +145,3 @@ flowchart LR
 - **Implementado hoy:** frontend, backend, HTTP ingestion, RabbitMQ, TimescaleDB local, sensores persistentes, alertas persistentes, endpoint demo, Prometheus, Grafana base y Supabase con tablas equivalentes.
 - **Planeado proximo:** metricas de negocio, dashboard Grafana provisionado, resolver alertas, umbrales configurables, adaptadores MQTT/Modbus simulados, backup/restore y CI.
 - **Fase futura:** Kubernetes, tracing distribuido y protocolos reales MQTT/Modbus si el alcance lo requiere.
-
