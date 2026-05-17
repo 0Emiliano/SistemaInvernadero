@@ -5,7 +5,7 @@ import type { SensorItem } from '../../types';
 export function SensorList({ sensors }: { sensors: SensorItem[] }) {
   return (
     <div className="space-y-6">
-      <Header title="Registro de sensores" subtitle="Inventario construido desde las ultimas lecturas persistidas." />
+      <Header title="Registro de sensores" subtitle="Inventario persistente con ultima lectura disponible." />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {sensors.length === 0 && (
           <Panel className="md:col-span-2 xl:col-span-3">
@@ -25,8 +25,8 @@ export function SensorList({ sensors }: { sensors: SensorItem[] }) {
               </span>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <Metric icon={<Thermometer size={14} />} label="Temp" value={`${sensor.lastTemperature} C`} />
-              <Metric icon={<Droplets size={14} />} label="Hum" value={`${sensor.lastHumidity}%`} />
+              <Metric icon={<Thermometer size={14} />} label="Temp" value={sensor.lastTemperature != null ? `${sensor.lastTemperature} C` : 'S/D'} />
+              <Metric icon={<Droplets size={14} />} label="Hum" value={sensor.lastHumidity != null ? `${sensor.lastHumidity}%` : 'S/D'} />
             </div>
             <div className="mt-5 flex items-center justify-between border-t border-[#2A2A2A] pt-4">
               <span className="font-mono text-[10px] text-zinc-500">{sensor.manufacturer || 'N/A'}</span>

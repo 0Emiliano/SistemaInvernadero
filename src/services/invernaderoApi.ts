@@ -18,10 +18,7 @@ export async function getSystemData(greenhouseId: string) {
 }
 
 export async function ingestTelemetry(formData: TelemetryFormData) {
-  return axios.post(`${API_URL}/ingest`, {
-    ...formData,
-    timestamp: new Date().toISOString(),
-  });
+  return axios.post(`${API_URL}/ingest`, formData);
 }
 
 export async function registerSensor(formData: TelemetryFormData) {
@@ -29,6 +26,12 @@ export async function registerSensor(formData: TelemetryFormData) {
     params: {
       greenhouseId: formData.greenhouseId,
       sensorId: formData.sensorId,
+      manufacturer: formData.manufacturer,
+      type: 'TELEMETRY',
     },
   });
+}
+
+export async function seedDemoData() {
+  return axios.post(`${API_URL}/demo/seed`);
 }

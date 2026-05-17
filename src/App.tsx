@@ -9,7 +9,7 @@ import { IngestionView } from './components/ingestion/IngestionView';
 import { Shell } from './components/layout/Shell';
 import { SensorList } from './components/sensors/SensorList';
 import { Panel } from './components/ui/Panel';
-import { getSystemData, ingestTelemetry, registerSensor } from './services/invernaderoApi';
+import { getSystemData, ingestTelemetry, registerSensor, seedDemoData } from './services/invernaderoApi';
 import type { ActiveTab, AlertItem, DashboardPayload, SensorItem, TelemetryFormData } from './types';
 
 const emptyDashboard: DashboardPayload = {
@@ -72,12 +72,18 @@ export default function App() {
     await loadData();
   };
 
+  const loadDemoData = async () => {
+    await seedDemoData();
+    setMessage('Datos demo enviados al flujo RabbitMQ.');
+    window.setTimeout(loadData, 700);
+  };
+
   return (
     <Shell activeTab={activeTab} alertCount={alerts.length} onTabChange={setActiveTab}>
       <div className="mx-auto max-w-[1600px] space-y-8">
         {activeTab === 'dashboard' ? (
           <>
-            <PageHeader loading={loading} onRefresh={loadData} />
+            <PageHeader loading={loading} onDemoSeed={loadDemoData} onRefresh={loadData} />
             {message && (
               <p className="rounded-xl border border-emerald-500/10 bg-emerald-500/5 px-4 py-3 text-sm text-emerald-300">
                 {message}
@@ -118,7 +124,7 @@ export default function App() {
   );
 }
 
-function PageHeader({ loading, onRefresh }: { loading: boolean; onRefresh: () => void }) {
+function PageHeader({ loading, onDemoSeed, onRefresh }: { loading: boolean; onDemoSeed: () => void; onRefresh: () => void }) {
   return (
     <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
       <div>
@@ -131,6 +137,13 @@ function PageHeader({ loading, onRefresh }: { loading: boolean; onRefresh: () =>
         <button className="flex items-center gap-2 rounded-lg border border-[#2A2A2A] bg-zinc-900/50 px-3 py-1.5 font-mono text-xs uppercase tracking-widest text-zinc-400 transition-colors hover:border-zinc-700 hover:text-white" type="button">
           <Download size={14} />
           Export
+        </button>
+        <button
+          className="flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 font-mono text-xs uppercase tracking-widest text-emerald-300 transition-colors hover:border-emerald-500/40 hover:text-emerald-200"
+          onClick={onDemoSeed}
+          type="button"
+        >
+          Demo
         </button>
         <button
           className="flex items-center gap-2 rounded-lg bg-emerald-500 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-black shadow-lg shadow-emerald-500/20 transition-colors hover:bg-emerald-400"

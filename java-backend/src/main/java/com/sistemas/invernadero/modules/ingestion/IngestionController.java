@@ -1,8 +1,10 @@
 package com.sistemas.invernadero.modules.ingestion;
 
 import com.sistemas.invernadero.config.RabbitConfig;
-import com.sistemas.invernadero.shared.model.SensorReading;
 import com.sistemas.invernadero.core.responses.ApiResponse;
+import com.sistemas.invernadero.modules.ingestion.dto.SensorReadingRequest;
+import com.sistemas.invernadero.shared.model.SensorReading;
+import jakarta.validation.Valid;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -18,14 +20,9 @@ public class IngestionController {
     private RabbitTemplate rabbitTemplate;
 
     @PostMapping("/ingest")
-    public ApiResponse<Map<String, Object>> ingestTelemetry(@RequestBody SensorReading reading) {
+    public ApiResponse<Map<String, Object>> ingestTelemetry(@Valid @RequestBody SensorReadingRequest request) {
         try {
-            if (reading.getGreenhouseId() == null || reading.getSensorId() == null) {
-                return ApiResponse.error("greenhouseId and sensorId are required");
-            }
-            if (reading.getTimestamp() == null) {
-                reading.setTimestamp(java.time.LocalDateTime.now());
-            }
+            SensorReading reading = request.toSensorReading();
 
             String routingKey = "invernadero." + reading.getGreenhouseId() + "." + reading.getSensorId();
             rabbitTemplate.convertAndSend(RabbitConfig.EXCHANGE_NAME, routingKey, reading);

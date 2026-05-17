@@ -15,18 +15,27 @@ export interface AlertItem {
   sensorId: string;
   greenhouseId: string;
   temperature: number;
+  value?: number;
+  threshold?: number;
   type: string;
+  severity?: string;
   timestamp: string;
+  createdAt?: string;
+  resolvedAt?: string | null;
   status: string;
 }
 
 export interface SensorItem {
+  id?: number;
   sensorId: string;
   greenhouseId: string;
-  lastTemperature: number;
-  lastHumidity: number;
-  lastReading: string;
-  manufacturer: string;
+  type?: string;
+  lastTemperature?: number;
+  lastHumidity?: number;
+  lastReading?: string;
+  manufacturer?: string;
+  createdAt?: string;
+  lastSeenAt?: string;
   status: string;
 }
 

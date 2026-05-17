@@ -7,7 +7,7 @@ Sistema de monitoreo de invernaderos basado en el diagrama de despliegue/compone
 - Mensajeria: RabbitMQ con exchange topic `invernadero.telemetry.exchange`.
 - Persistencia: TimescaleDB/PostgreSQL con hypertable `mediciones`.
 - Observabilidad: Prometheus y Grafana.
-- Compatibilidad Supabase: `infra/supabase/schema.sql` contiene el SQL base para un Postgres/Supabase con TimescaleDB disponible.
+- Compatibilidad Supabase: `infra/supabase/schema.sql` contiene el SQL base para Postgres/Supabase y activa TimescaleDB solo si la extension esta disponible en el proyecto.
 
 ## Ejecutar
 
@@ -34,6 +34,16 @@ Credenciales por defecto: revisar `.env.example`.
 3. `PersistenceService` consume el evento y guarda la lectura en TimescaleDB.
 4. `AlarmService` consume el mismo evento y registra alertas cuando la temperatura supera 35 C.
 5. El dashboard consulta `/api/v1/analytics/dashboard/{greenhouseId}`, `/api/v1/sensors` y `/api/v1/alerts`.
+
+## Endpoints principales
+
+- `GET /api/v1/health`
+- `POST /api/v1/ingest`
+- `POST /api/v1/sensors/register`
+- `GET /api/v1/sensors`
+- `GET /api/v1/alerts`
+- `GET /api/v1/analytics/dashboard/{greenhouseId}`
+- `POST /api/v1/demo/seed`
 
 ## Configuracion
 

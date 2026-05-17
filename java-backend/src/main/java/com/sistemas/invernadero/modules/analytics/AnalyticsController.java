@@ -1,14 +1,17 @@
 package com.sistemas.invernadero.modules.analytics;
 
 import com.sistemas.invernadero.core.responses.ApiResponse;
+import com.sistemas.invernadero.modules.alerts.AlertEntity;
+import com.sistemas.invernadero.modules.alerts.AlertRepository;
 import com.sistemas.invernadero.modules.persistence.SensorReadingRepository;
 import com.sistemas.invernadero.modules.persistence.model.SensorReadingEntity;
+import com.sistemas.invernadero.modules.sensors.SensorEntity;
+import com.sistemas.invernadero.modules.sensors.SensorService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1")
@@ -17,6 +20,12 @@ public class AnalyticsController {
 
     @Autowired
     private SensorReadingRepository repository;
+
+    @Autowired
+    private AlertRepository alertRepository;
+
+    @Autowired
+    private SensorService sensorService;
 
     // Dashboard data
     @GetMapping("/analytics/dashboard/{greenhouseId}")
@@ -37,22 +46,9 @@ public class AnalyticsController {
     // Get all active alerts
     @GetMapping("/alerts")
     public ApiResponse<List<Map<String, Object>>> getAlerts() {
-        LocalDateTime last24Hours = LocalDateTime.now().minusHours(24);
-        List<SensorReadingEntity> criticalReadings = repository.findCriticalReadings(last24Hours, 35.0);
-
-        List<Map<String, Object>> alerts = criticalReadings.stream()
-                .map(r -> {
-                    Map<String, Object> alert = new HashMap<>();
-                    alert.put("id", r.getId());
-                    alert.put("sensorId", r.getSensorId());
-                    alert.put("greenhouseId", r.getGreenhouseId());
-                    alert.put("temperature", r.getTemperature());
-                    alert.put("type", "CRITICAL_TEMPERATURE");
-                    alert.put("timestamp", r.getTimestamp());
-                    alert.put("status", "ACTIVE");
-                    return alert;
-                })
-                .collect(Collectors.toList());
+        List<Map<String, Object>> alerts = alertRepository.findAllByOrderByCreatedAtDesc().stream()
+                .map(this::toAlertResponse)
+                .toList();
 
         return ApiResponse.success(alerts, "Alerts retrieved successfully");
     }
@@ -60,43 +56,39 @@ public class AnalyticsController {
     // Get all sensors
     @GetMapping("/sensors")
     public ApiResponse<List<Map<String, Object>>> getSensors() {
-        List<SensorReadingEntity> readings = repository.findAllRecent(LocalDateTime.now().minusHours(24));
-        
-        List<Map<String, Object>> sensors = readings.stream()
-                .collect(Collectors.groupingBy(r -> r.getGreenhouseId() + ":" + r.getSensorId()))
-                .entrySet().stream()
-                .map(entry -> {
-                    SensorReadingEntity latest = entry.getValue().stream()
-                            .max(Comparator.comparing(SensorReadingEntity::getTimestamp))
-                            .orElse(null);
-                    
-                    Map<String, Object> sensor = new HashMap<>();
-                    if (latest != null) {
-                        sensor.put("sensorId", latest.getSensorId());
-                        sensor.put("greenhouseId", latest.getGreenhouseId());
-                        sensor.put("lastTemperature", latest.getTemperature());
-                        sensor.put("lastHumidity", latest.getHumidity());
-                        sensor.put("lastReading", latest.getTimestamp());
-                        sensor.put("manufacturer", latest.getManufacturer());
-                        sensor.put("status", "ACTIVE");
-                    }
-                    return sensor;
-                })
-                .collect(Collectors.toList());
-
-        return ApiResponse.success(sensors, "Sensors retrieved successfully");
+        return ApiResponse.success(sensorService.listSensors(), "Sensors retrieved successfully");
     }
 
     @PostMapping("/sensors/register")
     public ApiResponse<Map<String, String>> registerSensor(
             @RequestParam String greenhouseId,
-            @RequestParam String sensorId) {
+            @RequestParam String sensorId,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) String manufacturer) {
         
+        SensorEntity sensor = sensorService.registerSensor(greenhouseId, sensorId, type, manufacturer);
         Map<String, String> response = new HashMap<>();
-        response.put("sensorId", sensorId);
-        response.put("greenhouseId", greenhouseId);
-        response.put("status", "REGISTERED");
+        response.put("sensorId", sensor.getSensorId());
+        response.put("greenhouseId", sensor.getGreenhouseId());
+        response.put("status", sensor.getStatus());
         
         return ApiResponse.success(response, "Sensor registered successfully");
+    }
+
+    private Map<String, Object> toAlertResponse(AlertEntity entity) {
+        Map<String, Object> alert = new HashMap<>();
+        alert.put("id", entity.getId());
+        alert.put("sensorId", entity.getSensorId());
+        alert.put("greenhouseId", entity.getGreenhouseId());
+        alert.put("temperature", entity.getValue());
+        alert.put("value", entity.getValue());
+        alert.put("threshold", entity.getThreshold());
+        alert.put("type", entity.getType());
+        alert.put("severity", entity.getSeverity());
+        alert.put("timestamp", entity.getCreatedAt());
+        alert.put("createdAt", entity.getCreatedAt());
+        alert.put("resolvedAt", entity.getResolvedAt());
+        alert.put("status", entity.getStatus());
+        return alert;
     }
 }

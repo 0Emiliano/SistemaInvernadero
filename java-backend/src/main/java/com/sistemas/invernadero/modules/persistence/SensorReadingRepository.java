@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface SensorReadingRepository extends JpaRepository<SensorReadingEntity, Long> {
@@ -25,4 +26,6 @@ public interface SensorReadingRepository extends JpaRepository<SensorReadingEnti
     List<SensorReadingEntity> findCriticalReadings(
             @Param("since") LocalDateTime since,
             @Param("maxTemperature") Double maxTemperature);
+
+    Optional<SensorReadingEntity> findTopByGreenhouseIdAndSensorIdOrderByTimestampDesc(String greenhouseId, String sensorId);
 }

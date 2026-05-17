@@ -2,6 +2,7 @@ package com.sistemas.invernadero.modules.persistence;
 
 import com.sistemas.invernadero.config.RabbitConfig;
 import com.sistemas.invernadero.modules.persistence.model.SensorReadingEntity;
+import com.sistemas.invernadero.modules.sensors.SensorService;
 import com.sistemas.invernadero.shared.model.SensorReading;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +17,9 @@ public class PersistenceService {
 
     @Autowired
     private SensorReadingRepository repository;
+
+    @Autowired
+    private SensorService sensorService;
 
     @RabbitListener(queues = RabbitConfig.PERSISTENCE_QUEUE)
     public void persistReading(SensorReading reading) {
@@ -37,6 +41,7 @@ public class PersistenceService {
                     .build();
 
             repository.save(entity);
+            sensorService.touchFromReading(reading);
         } catch (Exception e) {
             log.error("[PERSISTENCE] Error fatal guardando en TimescaleDB: {}", e.getMessage());
         }
