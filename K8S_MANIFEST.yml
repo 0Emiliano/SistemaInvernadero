@@ -1,9 +1,0 @@
-# Deprecated Kubernetes entrypoint
-#
-# The production-oriented Kubernetes manifests now live in the `k8s/` directory.
-# Apply them with:
-#
-#   kubectl apply -f k8s/
-#
-# See `k8s/DEPLOYMENT.md` for image build, deployment, verification, and cleanup
-# instructions.

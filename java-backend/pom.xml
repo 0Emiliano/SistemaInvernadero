@@ -46,9 +46,11 @@
       <scope>runtime</scope>
     </dependency>
 
-    <!-- Utilities -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-registry-prometheus</artifactId>
+    </dependency>
 
-    <!-- Utilities -->
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>

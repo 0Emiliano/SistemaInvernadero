@@ -17,4 +17,12 @@ public interface SensorReadingRepository extends JpaRepository<SensorReadingEnti
 
     @Query("SELECT AVG(r.temperature) FROM SensorReadingEntity r WHERE r.greenhouseId = :greenhouseId AND r.timestamp >= :since")
     Double getAverageTemperature(@Param("greenhouseId") String greenhouseId, @Param("since") LocalDateTime since);
+
+    @Query("SELECT r FROM SensorReadingEntity r WHERE r.timestamp >= :since ORDER BY r.timestamp DESC")
+    List<SensorReadingEntity> findAllRecent(@Param("since") LocalDateTime since);
+
+    @Query("SELECT r FROM SensorReadingEntity r WHERE r.timestamp >= :since AND r.temperature > :maxTemperature ORDER BY r.timestamp DESC")
+    List<SensorReadingEntity> findCriticalReadings(
+            @Param("since") LocalDateTime since,
+            @Param("maxTemperature") Double maxTemperature);
 }

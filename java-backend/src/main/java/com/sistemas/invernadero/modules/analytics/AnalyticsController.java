@@ -38,10 +38,7 @@ public class AnalyticsController {
     @GetMapping("/alerts")
     public ApiResponse<List<Map<String, Object>>> getAlerts() {
         LocalDateTime last24Hours = LocalDateTime.now().minusHours(24);
-        List<SensorReadingEntity> criticalReadings = repository.findAll().stream()
-                .filter(r -> r.getTemperature() > 35.0)
-                .filter(r -> r.getTimestamp().isAfter(last24Hours))
-                .collect(Collectors.toList());
+        List<SensorReadingEntity> criticalReadings = repository.findCriticalReadings(last24Hours, 35.0);
 
         List<Map<String, Object>> alerts = criticalReadings.stream()
                 .map(r -> {
@@ -63,10 +60,10 @@ public class AnalyticsController {
     // Get all sensors
     @GetMapping("/sensors")
     public ApiResponse<List<Map<String, Object>>> getSensors() {
-        List<SensorReadingEntity> readings = repository.findAll();
+        List<SensorReadingEntity> readings = repository.findAllRecent(LocalDateTime.now().minusHours(24));
         
         List<Map<String, Object>> sensors = readings.stream()
-                .collect(Collectors.groupingBy(r -> r.getSensorId()))
+                .collect(Collectors.groupingBy(r -> r.getGreenhouseId() + ":" + r.getSensorId()))
                 .entrySet().stream()
                 .map(entry -> {
                     SensorReadingEntity latest = entry.getValue().stream()
@@ -74,8 +71,8 @@ public class AnalyticsController {
                             .orElse(null);
                     
                     Map<String, Object> sensor = new HashMap<>();
-                    sensor.put("sensorId", entry.getKey());
                     if (latest != null) {
+                        sensor.put("sensorId", latest.getSensorId());
                         sensor.put("greenhouseId", latest.getGreenhouseId());
                         sensor.put("lastTemperature", latest.getTemperature());
                         sensor.put("lastHumidity", latest.getHumidity());
@@ -90,7 +87,6 @@ public class AnalyticsController {
         return ApiResponse.success(sensors, "Sensors retrieved successfully");
     }
 
-    // Register new sensor
     @PostMapping("/sensors/register")
     public ApiResponse<Map<String, String>> registerSensor(
             @RequestParam String greenhouseId,

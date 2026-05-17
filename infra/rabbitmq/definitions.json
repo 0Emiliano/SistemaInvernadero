@@ -1,0 +1,68 @@
+{
+  "users": [
+    {
+      "name": "guest",
+      "password": "guest",
+      "tags": "administrator"
+    }
+  ],
+  "vhosts": [
+    {
+      "name": "/"
+    }
+  ],
+  "permissions": [
+    {
+      "user": "guest",
+      "vhost": "/",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    }
+  ],
+  "exchanges": [
+    {
+      "name": "invernadero.telemetry.exchange",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    }
+  ],
+  "queues": [
+    {
+      "name": "alarm.queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "persistence.queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    }
+  ],
+  "bindings": [
+    {
+      "source": "invernadero.telemetry.exchange",
+      "vhost": "/",
+      "destination": "alarm.queue",
+      "destination_type": "queue",
+      "routing_key": "invernadero.*.*",
+      "arguments": {}
+    },
+    {
+      "source": "invernadero.telemetry.exchange",
+      "vhost": "/",
+      "destination": "persistence.queue",
+      "destination_type": "queue",
+      "routing_key": "invernadero.*.*",
+      "arguments": {}
+    }
+  ]
+}

@@ -1,13 +1,30 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
-} from 'recharts';
-import { 
-  Thermometer, Droplets, AlertTriangle, Activity, Send, Plus, Zap, Clock
-} from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import {
+  Activity,
+  AlertTriangle,
+  Droplets,
+  Plus,
+  RefreshCw,
+  Send,
+  Thermometer,
+  Wifi,
+} from 'lucide-react';
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 
-const API_URL = 'http://localhost:8080/api/v1';
+const API_URL = `${import.meta.env.VITE_API_URL ?? 'http://localhost:8080'}/api/v1`;
+
+type Tab = 'dashboard' | 'ingestion' | 'sensors' | 'alerts';
 
 interface SensorReading {
   id?: number;
@@ -19,7 +36,7 @@ interface SensorReading {
   timestamp: string;
 }
 
-interface Alert {
+interface AlertItem {
   id: number;
   sensorId: string;
   greenhouseId: string;
@@ -29,7 +46,7 @@ interface Alert {
   status: string;
 }
 
-interface Sensor {
+interface SensorItem {
   sensorId: string;
   greenhouseId: string;
   lastTemperature: number;
@@ -39,403 +56,343 @@ interface Sensor {
   status: string;
 }
 
-interface ChartPoint {
-  time: string;
-  temp: number;
-  hum: number;
+interface DashboardPayload {
+  recentReadings: SensorReading[];
+  averageTemperature24h: number;
+  period: string;
 }
 
-const Dashboard = () => {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [chartData, setChartData] = useState<ChartPoint[]>([]);
-  const [stats, setStats] = useState({ avgTemp: 0, alerts: 0, activeSensors: 0 });
-  const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [sensors, setSensors] = useState<Sensor[]>([]);
-  const [loading, setLoading] = useState(true);
+const emptyReading = {
+  greenhouseId: '1',
+  sensorId: 'temp',
+  temperature: 25,
+  humidity: 65,
+  manufacturer: 'HTTP',
+};
 
-  // Ingestion form
-  const [formData, setFormData] = useState({
-    greenhouseId: 'GW-001',
-    sensorId: 'S01',
-    temperature: 25,
-    humidity: 65,
-    manufacturer: 'BOSCH'
+export default function Dashboard() {
+  const [activeTab, setActiveTab] = useState<Tab>('dashboard');
+  const [greenhouseId, setGreenhouseId] = useState('1');
+  const [dashboard, setDashboard] = useState<DashboardPayload>({
+    recentReadings: [],
+    averageTemperature24h: 0,
+    period: 'LAST_24H',
   });
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const [sensors, setSensors] = useState<SensorItem[]>([]);
+  const [formData, setFormData] = useState(emptyReading);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
 
-  // Refresh dashboard data
-  useEffect(() => {
-    loadDashboardData();
-    const interval = setInterval(loadDashboardData, 10000);
-    return () => clearInterval(interval);
-  }, []);
+  const loadData = async () => {
+    setLoading(true);
+    setMessage('');
 
-  const loadDashboardData = async () => {
     try {
-      setLoading(true);
-      
-      // Get dashboard data
-      const dashboardRes = await axios.get(`${API_URL}/analytics/dashboard/GW-001`);
-      const data = dashboardRes.data.data;
-      
-      const chartData = data.recentReadings.map((r: SensorReading) => ({
-        time: new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        temp: r.temperature,
-        hum: r.humidity
-      })).reverse().slice(0, 24);
+      const [dashboardRes, alertsRes, sensorsRes] = await Promise.all([
+        axios.get(`${API_URL}/analytics/dashboard/${greenhouseId}`),
+        axios.get(`${API_URL}/alerts`),
+        axios.get(`${API_URL}/sensors`),
+      ]);
 
-      setChartData(chartData.length > 0 ? chartData : generateMockChart());
-      setStats({
-        avgTemp: data.averageTemperature24h,
-        alerts: 0,
-        activeSensors: data.recentReadings.length
-      });
-
-      // Get alerts
-      const alertsRes = await axios.get(`${API_URL}/alerts`);
-      setAlerts(alertsRes.data.data || []);
-      setStats(prev => ({ ...prev, alerts: alertsRes.data.data?.length || 0 }));
-
-      // Get sensors
-      const sensorsRes = await axios.get(`${API_URL}/sensors`);
-      setSensors(sensorsRes.data.data || []);
-
-    } catch (error) {
-      console.error('Error loading data:', error);
-      // Use mock data if API fails
-      setChartData(generateMockChart());
-      setStats({ avgTemp: 25.4, alerts: 0, activeSensors: 3 });
+      setDashboard(dashboardRes.data.data);
+      setAlerts(alertsRes.data.data ?? []);
+      setSensors(sensorsRes.data.data ?? []);
+    } catch {
+      setMessage('Backend no disponible. Levanta el stack con docker-compose up -d.');
     } finally {
       setLoading(false);
     }
   };
 
-  const generateMockChart = () => {
-    return Array.from({ length: 12 }).map((_, i) => ({
-      time: `${i}:00`,
-      temp: Number((22 + Math.random() * 8).toFixed(1)),
-      hum: Number((60 + Math.random() * 15).toFixed(1))
-    }));
+  useEffect(() => {
+    loadData();
+    const interval = window.setInterval(loadData, 10000);
+    return () => window.clearInterval(interval);
+  }, [greenhouseId]);
+
+  const chartData = useMemo(
+    () =>
+      dashboard.recentReadings
+        .slice()
+        .reverse()
+        .map((reading) => ({
+          time: new Date(reading.timestamp).toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+          temp: reading.temperature,
+          hum: reading.humidity,
+        })),
+    [dashboard.recentReadings],
+  );
+
+  const submitTelemetry = async (event: React.FormEvent) => {
+    event.preventDefault();
+    await axios.post(`${API_URL}/ingest`, {
+      ...formData,
+      timestamp: new Date().toISOString(),
+    });
+    setMessage('Lectura enviada a RabbitMQ.');
+    await loadData();
   };
 
-  const handleSendTelemetry = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const payload: SensorReading = {
-        ...formData,
-        timestamp: new Date().toISOString()
-      };
-
-      await axios.post(`${API_URL}/ingest`, payload);
-      alert('✅ Telemetry sent successfully!');
-      setFormData({ ...formData, temperature: 25, humidity: 65 });
-      
-      // Refresh data
-      setTimeout(loadDashboardData, 1000);
-    } catch (error) {
-      alert('❌ Error sending telemetry');
-      console.error(error);
-    }
-  };
-
-  const handleRegisterSensor = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const greenhouseId = (document.getElementById('reg-greenhouse') as HTMLInputElement)?.value || 'GW-001';
-      const sensorId = (document.getElementById('reg-sensor') as HTMLInputElement)?.value || 'S-NEW';
-
-      await axios.post(`${API_URL}/sensors/register`, {}, {
-        params: { greenhouseId, sensorId }
-      });
-      
-      alert(`✅ Sensor ${sensorId} registered!`);
-      loadDashboardData();
-    } catch (error) {
-      alert('❌ Error registering sensor');
-      console.error(error);
-    }
+  const registerSensor = async (event: React.FormEvent) => {
+    event.preventDefault();
+    await axios.post(`${API_URL}/sensors/register`, null, {
+      params: {
+        greenhouseId: formData.greenhouseId,
+        sensorId: formData.sensorId,
+      },
+    });
+    setMessage('Sensor registrado.');
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-6">
-      {/* Header */}
-      <header className="mb-8">
-        <div className="flex justify-between items-center mb-6">
+    <main className="min-h-screen bg-neutral-950 text-neutral-100">
+      <header className="border-b border-neutral-800 bg-neutral-900/80 px-4 py-4 md:px-8">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-4xl font-bold flex items-center gap-3">
-              <Zap className="text-emerald-400 w-10 h-10" />
+            <h1 className="flex items-center gap-3 text-2xl font-semibold">
+              <Wifi className="h-7 w-7 text-emerald-400" />
               Sistema Invernadero
             </h1>
-            <p className="text-slate-400 mt-1">Real-time greenhouse monitoring</p>
+            <p className="mt-1 text-sm text-neutral-400">
+              Monitoreo de sensores con Spring Boot, RabbitMQ y TimescaleDB.
+            </p>
           </div>
-          <div className="text-right">
-            <div className="text-emerald-400 font-mono text-sm">
-              Status: {loading ? '🔄 Loading...' : '✅ Connected'}
-            </div>
-          </div>
-        </div>
-
-        {/* Tab Navigation */}
-        <div className="flex gap-2 border-b border-slate-700">
-          {['dashboard', 'ingestion', 'sensors', 'alerts'].map(tab => (
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              aria-label="Invernadero"
+              className="h-10 rounded border border-neutral-700 bg-neutral-950 px-3 text-sm"
+              value={greenhouseId}
+              onChange={(event) => setGreenhouseId(event.target.value)}
+            />
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 font-medium transition-colors ${
-                activeTab === tab
-                  ? 'border-b-2 border-emerald-400 text-emerald-400'
-                  : 'text-slate-400 hover:text-slate-300'
-              }`}
+              className="inline-flex h-10 items-center gap-2 rounded bg-emerald-600 px-3 text-sm font-medium hover:bg-emerald-500"
+              onClick={loadData}
+              type="button"
             >
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              Actualizar
             </button>
-          ))}
+          </div>
         </div>
       </header>
 
-      {/* Dashboard Tab */}
-      {activeTab === 'dashboard' && (
-        <div>
-          {/* KPI Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <KPICard 
-              title="Avg Temperature" 
-              value={`${stats.avgTemp.toFixed(1)}°C`} 
-              icon={<Thermometer className="w-6 h-6" />} 
-              color="orange"
-            />
-            <KPICard 
-              title="Active Alerts" 
-              value={stats.alerts} 
-              icon={<AlertTriangle className="w-6 h-6" />} 
-              color="red"
-            />
-            <KPICard 
-              title="Active Sensors" 
-              value={stats.activeSensors} 
-              icon={<Activity className="w-6 h-6" />} 
-              color="emerald"
-            />
-          </div>
+      <section className="mx-auto max-w-7xl px-4 py-6 md:px-8">
+        <nav className="mb-6 flex gap-2 overflow-x-auto border-b border-neutral-800">
+          {(['dashboard', 'ingestion', 'sensors', 'alerts'] as Tab[]).map((tab) => (
+            <button
+              className={`px-3 py-3 text-sm font-medium ${
+                activeTab === tab
+                  ? 'border-b-2 border-emerald-400 text-emerald-300'
+                  : 'text-neutral-400 hover:text-neutral-200'
+              }`}
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              type="button"
+            >
+              {tabLabel(tab)}
+            </button>
+          ))}
+        </nav>
 
-          {/* Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-slate-700 p-6 rounded-lg border border-slate-600">
-              <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                <Thermometer className="w-5 h-5 text-orange-400" />
-                Temperature Trend
-              </h3>
-              <ResponsiveContainer width="100%" height={250}>
-                <AreaChart data={chartData}>
-                  <defs>
-                    <linearGradient id="colorTemp" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-                  <XAxis dataKey="time" stroke="#94a3b8" />
-                  <YAxis stroke="#94a3b8" />
-                  <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #475569', borderRadius: '8px' }} />
-                  <Area type="monotone" dataKey="temp" stroke="#f97316" fillOpacity={1} fill="url(#colorTemp)" />
-                </AreaChart>
-              </ResponsiveContainer>
+        {message && (
+          <p className="mb-5 rounded border border-neutral-700 bg-neutral-900 px-4 py-3 text-sm text-neutral-200">
+            {message}
+          </p>
+        )}
+
+        {activeTab === 'dashboard' && (
+          <>
+            <div className="mb-6 grid gap-4 md:grid-cols-3">
+              <KpiCard icon={<Thermometer />} label="Temperatura promedio" value={`${dashboard.averageTemperature24h.toFixed(1)} C`} />
+              <KpiCard icon={<AlertTriangle />} label="Alertas activas" value={alerts.length} />
+              <KpiCard icon={<Activity />} label="Sensores activos" value={sensors.length} />
             </div>
-
-            <div className="bg-slate-700 p-6 rounded-lg border border-slate-600">
-              <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                <Droplets className="w-5 h-5 text-blue-400" />
-                Humidity Trend
-              </h3>
-              <ResponsiveContainer width="100%" height={250}>
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-                  <XAxis dataKey="time" stroke="#94a3b8" />
-                  <YAxis stroke="#94a3b8" />
-                  <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #475569', borderRadius: '8px' }} />
-                  <Line type="monotone" dataKey="hum" stroke="#3b82f6" strokeWidth={3} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
+            <div className="grid gap-5 lg:grid-cols-2">
+              <ChartPanel title="Temperatura" icon={<Thermometer className="h-5 w-5 text-orange-400" />}>
+                <ResponsiveContainer width="100%" height={260}>
+                  <AreaChart data={chartData}>
+                    <CartesianGrid stroke="#262626" />
+                    <XAxis dataKey="time" stroke="#a3a3a3" />
+                    <YAxis stroke="#a3a3a3" />
+                    <Tooltip contentStyle={{ background: '#171717', border: '1px solid #404040' }} />
+                    <Area dataKey="temp" fill="#fb923c" fillOpacity={0.2} stroke="#fb923c" type="monotone" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </ChartPanel>
+              <ChartPanel title="Humedad" icon={<Droplets className="h-5 w-5 text-sky-400" />}>
+                <ResponsiveContainer width="100%" height={260}>
+                  <LineChart data={chartData}>
+                    <CartesianGrid stroke="#262626" />
+                    <XAxis dataKey="time" stroke="#a3a3a3" />
+                    <YAxis stroke="#a3a3a3" />
+                    <Tooltip contentStyle={{ background: '#171717', border: '1px solid #404040' }} />
+                    <Line dataKey="hum" dot={false} stroke="#38bdf8" strokeWidth={3} type="monotone" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </ChartPanel>
             </div>
+          </>
+        )}
+
+        {activeTab === 'ingestion' && (
+          <div className="grid gap-5 lg:grid-cols-2">
+            <Panel title="Enviar telemetria" icon={<Send className="h-5 w-5 text-emerald-400" />}>
+              <TelemetryForm formData={formData} setFormData={setFormData} onSubmit={submitTelemetry} submitLabel="Enviar lectura" />
+            </Panel>
+            <Panel title="Registrar sensor" icon={<Plus className="h-5 w-5 text-sky-400" />}>
+              <TelemetryForm formData={formData} setFormData={setFormData} onSubmit={registerSensor} submitLabel="Registrar" compact />
+            </Panel>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Ingestion Tab */}
-      {activeTab === 'ingestion' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-slate-700 p-6 rounded-lg border border-slate-600">
-            <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-              <Send className="w-5 h-5 text-emerald-400" />
-              Send Telemetry
-            </h3>
-            <form onSubmit={handleSendTelemetry} className="space-y-4">
-              <div>
-                <label className="text-sm text-slate-300">Greenhouse ID</label>
-                <input
-                  type="text"
-                  value={formData.greenhouseId}
-                  onChange={(e) => setFormData({ ...formData, greenhouseId: e.target.value })}
-                  className="w-full bg-slate-600 border border-slate-500 rounded px-3 py-2 text-white text-sm"
-                />
-              </div>
-              <div>
-                <label className="text-sm text-slate-300">Sensor ID</label>
-                <input
-                  type="text"
-                  value={formData.sensorId}
-                  onChange={(e) => setFormData({ ...formData, sensorId: e.target.value })}
-                  className="w-full bg-slate-600 border border-slate-500 rounded px-3 py-2 text-white text-sm"
-                />
-              </div>
-              <div>
-                <label className="text-sm text-slate-300">Temperature (°C)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={formData.temperature}
-                  onChange={(e) => setFormData({ ...formData, temperature: parseFloat(e.target.value) })}
-                  className="w-full bg-slate-600 border border-slate-500 rounded px-3 py-2 text-white text-sm"
-                />
-              </div>
-              <div>
-                <label className="text-sm text-slate-300">Humidity (%)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={formData.humidity}
-                  onChange={(e) => setFormData({ ...formData, humidity: parseFloat(e.target.value) })}
-                  className="w-full bg-slate-600 border border-slate-500 rounded px-3 py-2 text-white text-sm"
-                />
-              </div>
-              <button
-                type="submit"
-                className="w-full bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded font-medium transition-colors"
-              >
-                Send Telemetry
-              </button>
-            </form>
+        {activeTab === 'sensors' && (
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {sensors.map((sensor) => (
+              <Panel key={`${sensor.greenhouseId}-${sensor.sensorId}`} title={sensor.sensorId} subtitle={`Invernadero ${sensor.greenhouseId}`}>
+                <dl className="grid grid-cols-2 gap-3 text-sm">
+                  <Metric label="Temperatura" value={`${sensor.lastTemperature} C`} />
+                  <Metric label="Humedad" value={`${sensor.lastHumidity}%`} />
+                  <Metric label="Fabricante" value={sensor.manufacturer || 'N/A'} />
+                  <Metric label="Estado" value={sensor.status} />
+                </dl>
+              </Panel>
+            ))}
           </div>
+        )}
 
-          <div className="bg-slate-700 p-6 rounded-lg border border-slate-600">
-            <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-              <Plus className="w-5 h-5 text-blue-400" />
-              Register New Sensor
-            </h3>
-            <form onSubmit={handleRegisterSensor} className="space-y-4">
-              <div>
-                <label className="text-sm text-slate-300">Greenhouse ID</label>
-                <input
-                  id="reg-greenhouse"
-                  type="text"
-                  defaultValue="GW-001"
-                  className="w-full bg-slate-600 border border-slate-500 rounded px-3 py-2 text-white text-sm"
-                />
-              </div>
-              <div>
-                <label className="text-sm text-slate-300">Sensor ID</label>
-                <input
-                  id="reg-sensor"
-                  type="text"
-                  defaultValue="S-NEW"
-                  className="w-full bg-slate-600 border border-slate-500 rounded px-3 py-2 text-white text-sm"
-                />
-              </div>
-              <button
-                type="submit"
-                className="w-full bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded font-medium transition-colors"
-              >
-                Register Sensor
-              </button>
-            </form>
+        {activeTab === 'alerts' && (
+          <div className="space-y-3">
+            {alerts.length === 0 && <Panel title="Sin alertas">No hay lecturas criticas en las ultimas 24 horas.</Panel>}
+            {alerts.map((alert) => (
+              <Panel key={alert.id} title={alert.type} subtitle={`${alert.sensorId} en invernadero ${alert.greenhouseId}`}>
+                <p className="text-2xl font-semibold text-red-300">{alert.temperature} C</p>
+                <p className="mt-1 text-sm text-neutral-400">{new Date(alert.timestamp).toLocaleString()}</p>
+              </Panel>
+            ))}
           </div>
-        </div>
-      )}
-
-      {/* Sensors Tab */}
-      {activeTab === 'sensors' && (
-        <div className="bg-slate-700 p-6 rounded-lg border border-slate-600">
-          <h3 className="font-semibold text-lg mb-4">Connected Sensors</h3>
-          {sensors.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {sensors.map(sensor => (
-                <div key={sensor.sensorId} className="bg-slate-600 p-4 rounded border border-slate-500">
-                  <p className="font-mono text-sm text-emerald-400">{sensor.sensorId}</p>
-                  <p className="text-xs text-slate-400 mb-3">{sensor.greenhouseId}</p>
-                  <div className="space-y-2 text-sm">
-                    <div>🌡️ {sensor.lastTemperature}°C</div>
-                    <div>💧 {sensor.lastHumidity}%</div>
-                    <div className="text-xs text-slate-400">📍 {sensor.manufacturer}</div>
-                    <div className="text-xs text-slate-400">✅ {sensor.status}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-slate-400">No sensors connected yet</p>
-          )}
-        </div>
-      )}
-
-      {/* Alerts Tab */}
-      {activeTab === 'alerts' && (
-        <div className="bg-slate-700 p-6 rounded-lg border border-slate-600">
-          <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-red-400" />
-            Critical Alerts
-          </h3>
-          {alerts.length > 0 ? (
-            <div className="space-y-3">
-              {alerts.map(alert => (
-                <div key={alert.id} className="bg-slate-600 p-4 rounded border-l-4 border-red-500 flex justify-between items-center">
-                  <div>
-                    <p className="font-mono text-sm">{alert.sensorId} @ {alert.greenhouseId}</p>
-                    <p className="text-lg font-bold text-red-400">{alert.temperature}°C</p>
-                    <p className="text-xs text-slate-400 flex items-center gap-1 mt-1">
-                      <Clock className="w-3 h-3" />
-                      {new Date(alert.timestamp).toLocaleTimeString()}
-                    </p>
-                  </div>
-                  <span className="bg-red-600 px-3 py-1 rounded text-xs font-medium">⚠️ {alert.type}</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-slate-400">No critical alerts at this time ✅</p>
-          )}
-        </div>
-      )}
-
-      {/* Footer */}
-      <div className="mt-8 pt-4 border-t border-slate-700 text-xs text-slate-500 text-center">
-        Last updated: {new Date().toLocaleTimeString()}
-      </div>
-    </div>
+        )}
+      </section>
+    </main>
   );
-};
+}
 
-const KPICard = ({ title, value, icon, color }: { 
-  title: string, 
-  value: string | number, 
-  icon: React.ReactNode, 
-  color: string 
-}) => {
-  const colorClass = {
-    orange: 'from-orange-600 to-orange-700',
-    red: 'from-red-600 to-red-700',
-    emerald: 'from-emerald-600 to-emerald-700'
-  }[color] || 'from-slate-600 to-slate-700';
+function tabLabel(tab: Tab) {
+  return {
+    dashboard: 'Dashboard',
+    ingestion: 'Ingestion',
+    sensors: 'Sensores',
+    alerts: 'Alertas',
+  }[tab];
+}
 
+function KpiCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
   return (
-    <div className={`bg-gradient-to-br ${colorClass} p-6 rounded-lg border border-slate-600 text-white`}>
-      <div className="flex items-center justify-between">
+    <section className="rounded border border-neutral-800 bg-neutral-900 p-5">
+      <div className="mb-4 h-8 w-8 text-emerald-300">{icon}</div>
+      <p className="text-sm text-neutral-400">{label}</p>
+      <p className="mt-1 text-3xl font-semibold">{value}</p>
+    </section>
+  );
+}
+
+function Panel({
+  children,
+  icon,
+  subtitle,
+  title,
+}: {
+  children: React.ReactNode;
+  icon?: React.ReactNode;
+  subtitle?: string;
+  title: string;
+}) {
+  return (
+    <section className="rounded border border-neutral-800 bg-neutral-900 p-5">
+      <div className="mb-4 flex items-start gap-2">
+        {icon}
         <div>
-          <p className="text-slate-300 text-sm">{title}</p>
-          <p className="text-3xl font-bold mt-2">{value}</p>
+          <h2 className="text-lg font-semibold">{title}</h2>
+          {subtitle && <p className="text-sm text-neutral-400">{subtitle}</p>}
         </div>
-        <div className="opacity-50">{icon}</div>
       </div>
+      {children}
+    </section>
+  );
+}
+
+function ChartPanel({ children, icon, title }: { children: React.ReactNode; icon: React.ReactNode; title: string }) {
+  return (
+    <Panel icon={icon} title={title}>
+      {children}
+    </Panel>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div>
+      <dt className="text-neutral-500">{label}</dt>
+      <dd className="font-medium text-neutral-100">{value}</dd>
     </div>
   );
-};
+}
 
-export default Dashboard;
+function TelemetryForm({
+  compact = false,
+  formData,
+  onSubmit,
+  setFormData,
+  submitLabel,
+}: {
+  compact?: boolean;
+  formData: typeof emptyReading;
+  onSubmit: (event: React.FormEvent) => void;
+  setFormData: React.Dispatch<React.SetStateAction<typeof emptyReading>>;
+  submitLabel: string;
+}) {
+  return (
+    <form className="grid gap-4" onSubmit={onSubmit}>
+      <Field label="Invernadero" value={formData.greenhouseId} onChange={(value) => setFormData((data) => ({ ...data, greenhouseId: value }))} />
+      <Field label="Sensor" value={formData.sensorId} onChange={(value) => setFormData((data) => ({ ...data, sensorId: value }))} />
+      {!compact && (
+        <>
+          <Field label="Temperatura" type="number" value={formData.temperature} onChange={(value) => setFormData((data) => ({ ...data, temperature: Number(value) }))} />
+          <Field label="Humedad" type="number" value={formData.humidity} onChange={(value) => setFormData((data) => ({ ...data, humidity: Number(value) }))} />
+          <Field label="Fabricante" value={formData.manufacturer} onChange={(value) => setFormData((data) => ({ ...data, manufacturer: value }))} />
+        </>
+      )}
+      <button className="inline-flex h-10 items-center justify-center rounded bg-emerald-600 px-4 text-sm font-medium hover:bg-emerald-500" type="submit">
+        {submitLabel}
+      </button>
+    </form>
+  );
+}
+
+function Field({
+  label,
+  onChange,
+  type = 'text',
+  value,
+}: {
+  label: string;
+  onChange: (value: string) => void;
+  type?: string;
+  value: number | string;
+}) {
+  return (
+    <label className="grid gap-1 text-sm text-neutral-300">
+      {label}
+      <input
+        className="h-10 rounded border border-neutral-700 bg-neutral-950 px-3 text-neutral-100"
+        onChange={(event) => onChange(event.target.value)}
+        step={type === 'number' ? '0.1' : undefined}
+        type={type}
+        value={value}
+      />
+    </label>
+  );
+}

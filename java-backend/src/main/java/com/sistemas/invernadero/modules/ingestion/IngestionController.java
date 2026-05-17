@@ -3,7 +3,6 @@ package com.sistemas.invernadero.modules.ingestion;
 import com.sistemas.invernadero.config.RabbitConfig;
 import com.sistemas.invernadero.shared.model.SensorReading;
 import com.sistemas.invernadero.core.responses.ApiResponse;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -18,18 +17,16 @@ public class IngestionController {
     @Autowired
     private RabbitTemplate rabbitTemplate;
 
-    private ObjectMapper objectMapper = new ObjectMapper();
-
-    // Simple HTTP ingestion - JSON format
     @PostMapping("/ingest")
     public ApiResponse<Map<String, Object>> ingestTelemetry(@RequestBody SensorReading reading) {
         try {
-            // Set timestamp if not provided
+            if (reading.getGreenhouseId() == null || reading.getSensorId() == null) {
+                return ApiResponse.error("greenhouseId and sensorId are required");
+            }
             if (reading.getTimestamp() == null) {
-                reading.setTimestamp(java.time.LocalDateTime.now().toString());
+                reading.setTimestamp(java.time.LocalDateTime.now());
             }
 
-            // Publish to RabbitMQ
             String routingKey = "invernadero." + reading.getGreenhouseId() + "." + reading.getSensorId();
             rabbitTemplate.convertAndSend(RabbitConfig.EXCHANGE_NAME, routingKey, reading);
 
@@ -46,7 +43,6 @@ public class IngestionController {
         }
     }
 
-    // Health check
     @GetMapping("/health")
     public ApiResponse<Map<String, String>> health() {
         Map<String, String> health = new HashMap<>();

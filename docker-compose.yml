@@ -1,79 +1,100 @@
-version: '3.8'
-
 services:
-  # PostgreSQL + TimescaleDB
   timescaledb:
-    image: timescale/timescaledb:latest-pg15
-    container_name: timescaledb
+    image: timescale/timescaledb:2.17.2-pg15
+    container_name: invernadero-timescaledb
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: invernadero_db
+      POSTGRES_DB: ${POSTGRES_DB:-invernadero_db}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./java-backend/src/main/resources/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+      - timescaledb_data:/var/lib/postgresql/data
+      - ./infra/timescaledb/init.sql:/docker-entrypoint-initdb.d/001-init.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin -d invernadero_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin} -d ${POSTGRES_DB:-invernadero_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # RabbitMQ
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
-    container_name: rabbitmq
+    container_name: invernadero-rabbitmq
     environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: -rabbitmq_management load_definitions "/etc/rabbitmq/definitions.json"
     ports:
       - "5672:5672"
       - "15672:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+      - ./infra/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # Backend Spring Boot
   backend:
     build:
       context: ./java-backend
       dockerfile: Dockerfile
-    container_name: backend
+    container_name: invernadero-backend
     ports:
       - "8080:8080"
     environment:
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      DB_USER: ${POSTGRES_USER:-admin}
       DB_HOST: timescaledb
       RABBIT_HOST: rabbitmq
-      SPRING_PROFILES_ACTIVE: docker
+      RABBIT_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+      RABBIT_USER: ${RABBITMQ_USER:-guest}
     depends_on:
       timescaledb:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-    volumes:
-      - ./java-backend/src:/app/src
-    command: sh -c "sleep 5 && java -jar app.jar"
 
-  # Frontend Node/Vite
   frontend:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: frontend
+    container_name: invernadero-frontend
     ports:
-      - "3000:3000"
-    environment:
-      - VITE_API_URL=http://localhost:8080
+      - "3000:8080"
     depends_on:
       - backend
 
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: invernadero-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    depends_on:
+      - backend
+
+  grafana:
+    image: grafana/grafana:11.3.1
+    container_name: invernadero-grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
 volumes:
-  postgres_data:
+  grafana_data:
+  prometheus_data:
+  timescaledb_data:
   rabbitmq_data:
 
 networks:
