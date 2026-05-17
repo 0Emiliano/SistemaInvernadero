@@ -1,7 +1,41 @@
 @import "tailwindcss";
+@source "./**/*.{ts,tsx}";
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+html {
+  background: #141414;
+}
+
+body {
+  margin: 0;
+  background: #141414;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.custom-scrollbar {
+  scrollbar-color: #3f3f46 #18181b;
+  scrollbar-width: thin;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #18181b;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #3f3f46;
+  border: 2px solid #18181b;
+  border-radius: 999px;
 }
 
 @media print {
