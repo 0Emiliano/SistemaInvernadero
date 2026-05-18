@@ -52,3 +52,22 @@ export interface TelemetryFormData {
   humidity: number;
   manufacturer: string;
 }
+
+export interface ThresholdConfig {
+  id?: number;
+  greenhouseId: string;
+  metric: string;
+  maxValue: number;
+  minValue?: number | null;
+  updatedAt?: string;
+}
+
+export interface InfraStatus {
+  backend: string;
+  database: string;
+  rabbitmq: string;
+  readings: number;
+  sensors: number;
+  activeAlerts: number;
+  prometheusPath: string;
+}

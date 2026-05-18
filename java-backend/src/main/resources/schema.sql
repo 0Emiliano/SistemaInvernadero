@@ -52,3 +52,17 @@ CREATE INDEX IF NOT EXISTS idx_alertas_status_created
 
 CREATE INDEX IF NOT EXISTS idx_alertas_sensor_type
     ON alertas (greenhouse_id, sensor_id, type, status, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS threshold_config (
+    id BIGSERIAL PRIMARY KEY,
+    greenhouse_id TEXT NOT NULL,
+    metric TEXT NOT NULL,
+    max_value DOUBLE PRECISION NOT NULL,
+    min_value DOUBLE PRECISION,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_threshold_config_greenhouse_metric UNIQUE (greenhouse_id, metric)
+);
+
+INSERT INTO threshold_config (greenhouse_id, metric, max_value)
+VALUES ('1', 'TEMPERATURE', 35.0)
+ON CONFLICT (greenhouse_id, metric) DO NOTHING;

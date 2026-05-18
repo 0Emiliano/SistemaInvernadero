@@ -1,9 +1,8 @@
 package com.sistemas.invernadero.modules.demo;
 
-import com.sistemas.invernadero.config.RabbitConfig;
 import com.sistemas.invernadero.core.responses.ApiResponse;
+import com.sistemas.invernadero.modules.ingestion.TelemetryPublisherService;
 import com.sistemas.invernadero.shared.model.SensorReading;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -17,10 +16,10 @@ import java.util.Map;
 @RequestMapping("/api/v1/demo")
 public class DemoController {
 
-    private final RabbitTemplate rabbitTemplate;
+    private final TelemetryPublisherService publisherService;
 
-    public DemoController(RabbitTemplate rabbitTemplate) {
-        this.rabbitTemplate = rabbitTemplate;
+    public DemoController(TelemetryPublisherService publisherService) {
+        this.publisherService = publisherService;
     }
 
     @PostMapping("/seed")
@@ -35,8 +34,7 @@ public class DemoController {
         );
 
         for (SensorReading reading : readings) {
-            String routingKey = "invernadero." + reading.getGreenhouseId() + "." + reading.getSensorId();
-            rabbitTemplate.convertAndSend(RabbitConfig.EXCHANGE_NAME, routingKey, reading);
+            publisherService.publish(reading);
         }
 
         Map<String, Object> result = new HashMap<>();

@@ -1,8 +1,7 @@
 package com.sistemas.invernadero.modules.analytics;
 
 import com.sistemas.invernadero.core.responses.ApiResponse;
-import com.sistemas.invernadero.modules.alerts.AlertEntity;
-import com.sistemas.invernadero.modules.alerts.AlertRepository;
+import com.sistemas.invernadero.modules.alerts.AlertService;
 import com.sistemas.invernadero.modules.persistence.SensorReadingRepository;
 import com.sistemas.invernadero.modules.persistence.model.SensorReadingEntity;
 import com.sistemas.invernadero.modules.sensors.SensorEntity;
@@ -22,7 +21,7 @@ public class AnalyticsController {
     private SensorReadingRepository repository;
 
     @Autowired
-    private AlertRepository alertRepository;
+    private AlertService alertService;
 
     @Autowired
     private SensorService sensorService;
@@ -46,11 +45,7 @@ public class AnalyticsController {
     // Get all active alerts
     @GetMapping("/alerts")
     public ApiResponse<List<Map<String, Object>>> getAlerts() {
-        List<Map<String, Object>> alerts = alertRepository.findAllByOrderByCreatedAtDesc().stream()
-                .map(this::toAlertResponse)
-                .toList();
-
-        return ApiResponse.success(alerts, "Alerts retrieved successfully");
+        return ApiResponse.success(alertService.listAlerts(), "Alerts retrieved successfully");
     }
 
     // Get all sensors
@@ -75,20 +70,8 @@ public class AnalyticsController {
         return ApiResponse.success(response, "Sensor registered successfully");
     }
 
-    private Map<String, Object> toAlertResponse(AlertEntity entity) {
-        Map<String, Object> alert = new HashMap<>();
-        alert.put("id", entity.getId());
-        alert.put("sensorId", entity.getSensorId());
-        alert.put("greenhouseId", entity.getGreenhouseId());
-        alert.put("temperature", entity.getValue());
-        alert.put("value", entity.getValue());
-        alert.put("threshold", entity.getThreshold());
-        alert.put("type", entity.getType());
-        alert.put("severity", entity.getSeverity());
-        alert.put("timestamp", entity.getCreatedAt());
-        alert.put("createdAt", entity.getCreatedAt());
-        alert.put("resolvedAt", entity.getResolvedAt());
-        alert.put("status", entity.getStatus());
-        return alert;
+    @PatchMapping("/alerts/{id}/resolve")
+    public ApiResponse<Map<String, Object>> resolveAlert(@PathVariable Long id) {
+        return ApiResponse.success(alertService.resolve(id), "Alert resolved successfully");
     }
 }

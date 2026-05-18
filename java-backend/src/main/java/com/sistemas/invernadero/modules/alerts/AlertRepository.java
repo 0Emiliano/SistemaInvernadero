@@ -10,6 +10,8 @@ import java.util.Optional;
 public interface AlertRepository extends JpaRepository<AlertEntity, Long> {
     List<AlertEntity> findAllByOrderByCreatedAtDesc();
 
+    long countByStatus(String status);
+
     Optional<AlertEntity> findTopByGreenhouseIdAndSensorIdAndTypeAndStatusOrderByCreatedAtDesc(
             String greenhouseId,
             String sensorId,

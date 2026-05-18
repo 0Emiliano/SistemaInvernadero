@@ -1,15 +1,16 @@
 import { Boxes, Database, Gauge, MessageSquare, Server } from 'lucide-react';
 import { Panel } from '../ui/Panel';
+import type { InfraStatus } from '../../types';
 
-const services = [
-  { icon: <Server />, name: 'Spring Boot API', port: '8080', status: 'UP' },
-  { icon: <Database />, name: 'TimescaleDB', port: '5432', status: 'HEALTHY' },
-  { icon: <MessageSquare />, name: 'RabbitMQ', port: '5672 / 15672', status: 'HEALTHY' },
-  { icon: <Gauge />, name: 'Prometheus', port: '9090', status: 'UP' },
-  { icon: <Boxes />, name: 'Grafana', port: '3001', status: 'UP' },
-];
+export function InfraView({ infra }: { infra?: InfraStatus }) {
+  const services = [
+    { icon: <Server />, name: 'Spring Boot API', port: '8080', status: infra?.backend ?? 'UNKNOWN' },
+    { icon: <Database />, name: 'TimescaleDB', port: '5432', status: infra?.database ?? 'UNKNOWN' },
+    { icon: <MessageSquare />, name: 'RabbitMQ', port: '5672 / 15673', status: infra?.rabbitmq ?? 'UNKNOWN' },
+    { icon: <Gauge />, name: 'Prometheus', port: '9090', status: infra ? 'UP' : 'UNKNOWN' },
+    { icon: <Boxes />, name: 'Grafana', port: '3001', status: 'UP' },
+  ];
 
-export function InfraView() {
   return (
     <div className="space-y-8">
       <div>
@@ -22,14 +23,17 @@ export function InfraView() {
             <div className="mb-5 text-emerald-400">{service.icon}</div>
             <h3 className="text-sm font-semibold text-white">{service.name}</h3>
             <p className="mt-2 font-mono text-[10px] text-zinc-500">PORT {service.port}</p>
-            <p className="mt-4 font-mono text-[10px] uppercase tracking-widest text-emerald-400">{service.status}</p>
+            <p className={`mt-4 font-mono text-[10px] uppercase tracking-widest ${service.status === 'UP' ? 'text-emerald-400' : 'text-amber-300'}`}>{service.status}</p>
           </Panel>
         ))}
       </div>
       <Panel eyebrow="Observabilidad" title="Prometheus / Grafana">
         <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          <InfraMetric label="Lecturas" value={String(infra?.readings ?? 0)} />
+          <InfraMetric label="Sensores" value={String(infra?.sensors ?? 0)} />
+          <InfraMetric label="Alertas activas" value={String(infra?.activeAlerts ?? 0)} />
           <InfraMetric label="Scrape target" value="backend:8080" />
-          <InfraMetric label="Metrics path" value="/actuator/prometheus" />
+          <InfraMetric label="Metrics path" value={infra?.prometheusPath ?? '/actuator/prometheus'} />
           <InfraMetric label="Datasource" value="Prometheus" />
         </div>
       </Panel>

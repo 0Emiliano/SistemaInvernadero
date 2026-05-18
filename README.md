@@ -6,7 +6,7 @@ Sistema de monitoreo de invernaderos basado en el diagrama de despliegue/compone
 - Backend: Spring Boot 3, Java 17, REST API, Spring AMQP, Spring Data JPA y Actuator.
 - Mensajeria: RabbitMQ con exchange topic `invernadero.telemetry.exchange`.
 - Persistencia: TimescaleDB/PostgreSQL con hypertable `mediciones`.
-- Observabilidad: Prometheus y Grafana.
+- Observabilidad: Prometheus y Grafana provisionado.
 - Compatibilidad Supabase: `infra/supabase/schema.sql` contiene el SQL base para Postgres/Supabase y activa TimescaleDB solo si la extension esta disponible en el proyecto.
 
 ## Ejecutar
@@ -21,11 +21,12 @@ docker-compose up -d
 
 - Frontend: http://localhost:3000
 - Backend: http://localhost:8080/api/v1/health
-- RabbitMQ: http://localhost:15672
+- RabbitMQ: http://localhost:15673
 - Prometheus: http://localhost:9090
 - Grafana: http://localhost:3001
 
 Credenciales por defecto: revisar `.env.example`.
+RabbitMQ usa `guest / guest`; Grafana usa `admin / admin` si no cambias `GRAFANA_PASSWORD`.
 
 ## Flujo
 
@@ -42,8 +43,14 @@ Credenciales por defecto: revisar `.env.example`.
 - `POST /api/v1/sensors/register`
 - `GET /api/v1/sensors`
 - `GET /api/v1/alerts`
+- `PATCH /api/v1/alerts/{id}/resolve`
 - `GET /api/v1/analytics/dashboard/{greenhouseId}`
 - `POST /api/v1/demo/seed`
+- `POST /api/v1/adapters/mqtt`
+- `POST /api/v1/adapters/modbus`
+- `GET /api/v1/config/thresholds/temperature`
+- `PUT /api/v1/config/thresholds/temperature`
+- `GET /api/v1/infra/status`
 
 ## Configuracion
 
@@ -52,4 +59,32 @@ Toda la configuracion operativa vive en `infra/`:
 - `infra/timescaledb/init.sql`
 - `infra/rabbitmq/definitions.json`
 - `infra/prometheus/prometheus.yml`
+- `infra/grafana/provisioning/`
+- `infra/grafana/dashboards/`
 - `infra/supabase/schema.sql`
+
+## Operacion local
+
+Aplicar esquema sobre un volumen existente:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\infra\db\apply-local-schema.ps1
+```
+
+Backup local:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\infra\backup\backup-local.ps1
+```
+
+Restore local:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\infra\backup\restore-local.ps1 -Path .\infra\backup\out\archivo.sql
+```
+
+Limpieza completa del stack local del proyecto:
+
+```bash
+docker compose down -v --rmi local --remove-orphans
+```

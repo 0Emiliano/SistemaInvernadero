@@ -8,3 +8,4 @@ coverage/
 !.env.example
 java-backend/bin/
 java-backend/target/
+infra/backup/out/

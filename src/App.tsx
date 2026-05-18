@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Download, RefreshCcw } from 'lucide-react';
 import { AlertLog } from './components/dashboard/AlertLog';
+import { ConfigView } from './components/config/ConfigView';
 import { HistoryChart } from './components/dashboard/HistoryChart';
 import { StatGrid } from './components/dashboard/StatGrid';
 import { Terminal } from './components/dashboard/Terminal';
@@ -9,8 +10,8 @@ import { IngestionView } from './components/ingestion/IngestionView';
 import { Shell } from './components/layout/Shell';
 import { SensorList } from './components/sensors/SensorList';
 import { Panel } from './components/ui/Panel';
-import { getSystemData, ingestTelemetry, registerSensor, seedDemoData } from './services/invernaderoApi';
-import type { ActiveTab, AlertItem, DashboardPayload, SensorItem, TelemetryFormData } from './types';
+import { getSystemData, ingestTelemetry, registerSensor, resolveAlert, seedDemoData, sendAdapterTelemetry, updateTemperatureThreshold } from './services/invernaderoApi';
+import type { ActiveTab, AlertItem, DashboardPayload, InfraStatus, SensorItem, TelemetryFormData, ThresholdConfig } from './types';
 
 const emptyDashboard: DashboardPayload = {
   averageTemperature24h: 0,
@@ -32,9 +33,12 @@ export default function App() {
   const [dashboard, setDashboard] = useState<DashboardPayload>(emptyDashboard);
   const [formData, setFormData] = useState<TelemetryFormData>(emptyReading);
   const [greenhouseId] = useState('1');
+  const [infra, setInfra] = useState<InfraStatus>();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [sensors, setSensors] = useState<SensorItem[]>([]);
+  const [threshold, setThreshold] = useState<ThresholdConfig>();
+  const [thresholdDraft, setThresholdDraft] = useState(35);
 
   const loadData = async () => {
     setLoading(true);
@@ -44,7 +48,10 @@ export default function App() {
       const data = await getSystemData(greenhouseId);
       setDashboard(data.dashboard);
       setAlerts(data.alerts);
+      setInfra(data.infra);
       setSensors(data.sensors);
+      setThreshold(data.threshold);
+      setThresholdDraft(data.threshold.maxValue);
     } catch {
       setMessage('Backend no disponible. Levanta el stack con docker-compose up -d.');
     } finally {
@@ -65,6 +72,12 @@ export default function App() {
     await loadData();
   };
 
+  const submitAdapterTelemetry = async (adapter: 'modbus' | 'mqtt') => {
+    await sendAdapterTelemetry(adapter, formData);
+    setMessage(`Lectura enviada desde adapter ${adapter.toUpperCase()}.`);
+    await loadData();
+  };
+
   const submitSensorRegistration = async (event: React.FormEvent) => {
     event.preventDefault();
     await registerSensor(formData);
@@ -78,12 +91,47 @@ export default function App() {
     window.setTimeout(loadData, 700);
   };
 
+  const resolveSelectedAlert = async (alertId: number) => {
+    await resolveAlert(alertId);
+    setMessage('Alerta resuelta.');
+    await loadData();
+  };
+
+  const saveThreshold = async (event: React.FormEvent) => {
+    event.preventDefault();
+    await updateTemperatureThreshold(greenhouseId, thresholdDraft);
+    setMessage('Umbral de temperatura actualizado.');
+    await loadData();
+  };
+
+  const exportCsv = () => {
+    const rows = [
+      ['timestamp', 'greenhouseId', 'sensorId', 'temperature', 'humidity', 'manufacturer'],
+      ...dashboard.recentReadings.map((reading) => [
+        reading.timestamp,
+        reading.greenhouseId,
+        reading.sensorId,
+        String(reading.temperature),
+        String(reading.humidity),
+        reading.manufacturer,
+      ]),
+    ];
+    const csv = rows.map((row) => row.map((value) => `"${String(value ?? '').replaceAll('"', '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `invernadero-${greenhouseId}-lecturas.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <Shell activeTab={activeTab} alertCount={alerts.length} onTabChange={setActiveTab}>
       <div className="mx-auto max-w-[1600px] space-y-8">
         {activeTab === 'dashboard' ? (
           <>
-            <PageHeader loading={loading} onDemoSeed={loadDemoData} onRefresh={loadData} />
+            <PageHeader loading={loading} onDemoSeed={loadDemoData} onExport={exportCsv} onRefresh={loadData} />
             {message && (
               <p className="rounded-xl border border-emerald-500/10 bg-emerald-500/5 px-4 py-3 text-sm text-emerald-300">
                 {message}
@@ -95,7 +143,7 @@ export default function App() {
                 <HistoryChart dashboard={dashboard} />
                 <Terminal alerts={alerts} sensors={sensors} />
               </div>
-              <AlertLog alerts={alerts} />
+              <AlertLog alerts={alerts} onResolve={resolveSelectedAlert} />
             </div>
           </>
         ) : activeTab === 'sensores' ? (
@@ -104,17 +152,20 @@ export default function App() {
           <IngestionView
             formData={formData}
             message={message}
+            onAdapterSubmit={submitAdapterTelemetry}
             onRegister={submitSensorRegistration}
             onSubmit={submitTelemetry}
             setFormData={setFormData}
           />
         ) : activeTab === 'infra' ? (
-          <InfraView />
+          <InfraView infra={infra} />
         ) : activeTab === 'alertas' ? (
-          <AlertLog alerts={alerts} />
+          <AlertLog alerts={alerts} onResolve={resolveSelectedAlert} />
+        ) : activeTab === 'config' ? (
+          <ConfigView threshold={threshold} thresholdDraft={thresholdDraft} onSave={saveThreshold} setThresholdDraft={setThresholdDraft} />
         ) : (
           <Panel className="flex h-64 items-center justify-center border-dashed">
-            <p className="font-mono text-sm text-zinc-500">Modulo {activeTab.toUpperCase()} en desarrollo...</p>
+            <p className="font-mono text-sm text-zinc-500">Modulo en desarrollo...</p>
           </Panel>
         )}
 
@@ -124,7 +175,7 @@ export default function App() {
   );
 }
 
-function PageHeader({ loading, onDemoSeed, onRefresh }: { loading: boolean; onDemoSeed: () => void; onRefresh: () => void }) {
+function PageHeader({ loading, onDemoSeed, onExport, onRefresh }: { loading: boolean; onDemoSeed: () => void; onExport: () => void; onRefresh: () => void }) {
   return (
     <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
       <div>
@@ -134,7 +185,7 @@ function PageHeader({ loading, onDemoSeed, onRefresh }: { loading: boolean; onDe
         </p>
       </div>
       <div className="flex items-center gap-3">
-        <button className="flex items-center gap-2 rounded-lg border border-[#2A2A2A] bg-zinc-900/50 px-3 py-1.5 font-mono text-xs uppercase tracking-widest text-zinc-400 transition-colors hover:border-zinc-700 hover:text-white" type="button">
+        <button className="flex items-center gap-2 rounded-lg border border-[#2A2A2A] bg-zinc-900/50 px-3 py-1.5 font-mono text-xs uppercase tracking-widest text-zinc-400 transition-colors hover:border-zinc-700 hover:text-white" onClick={onExport} type="button">
           <Download size={14} />
           Export
         </button>

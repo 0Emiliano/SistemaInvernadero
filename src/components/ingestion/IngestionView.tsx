@@ -6,12 +6,14 @@ export function IngestionView({
   formData,
   message,
   onRegister,
+  onAdapterSubmit,
   onSubmit,
   setFormData,
 }: {
   formData: TelemetryFormData;
   message: string;
   onRegister: (event: React.FormEvent) => void;
+  onAdapterSubmit: (adapter: 'modbus' | 'mqtt') => void;
   onSubmit: (event: React.FormEvent) => void;
   setFormData: React.Dispatch<React.SetStateAction<TelemetryFormData>>;
 }) {
@@ -45,6 +47,14 @@ export function IngestionView({
               Registrar sensor
             </button>
           </form>
+          <div className="mt-5 grid grid-cols-2 gap-3 border-t border-[#2A2A2A] pt-5">
+            <button className="rounded-lg border border-[#2A2A2A] bg-black/20 px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-zinc-400 hover:border-emerald-500/30 hover:text-emerald-300" onClick={() => onAdapterSubmit('mqtt')} type="button">
+              MQTT
+            </button>
+            <button className="rounded-lg border border-[#2A2A2A] bg-black/20 px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-zinc-400 hover:border-emerald-500/30 hover:text-emerald-300" onClick={() => onAdapterSubmit('modbus')} type="button">
+              Modbus
+            </button>
+          </div>
         </Panel>
       </div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">

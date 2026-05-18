@@ -1,18 +1,17 @@
 package com.sistemas.invernadero.modules.ingestion;
 
-import com.sistemas.invernadero.config.RabbitConfig;
-import com.sistemas.invernadero.shared.model.SensorReading;
 import org.junit.jupiter.api.Test;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-import static org.mockito.ArgumentMatchers.eq;
+import java.util.Map;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -24,10 +23,13 @@ class IngestionControllerTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private RabbitTemplate rabbitTemplate;
+    private TelemetryPublisherService publisherService;
 
     @Test
     void ingestTelemetryEnqueuesValidReading() throws Exception {
+        when(publisherService.publish(any()))
+                .thenReturn(Map.of("status", "ENQUEUED", "sensorId", "temp-01", "greenhouseId", "1"));
+
         mockMvc.perform(post("/api/v1/ingest")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -43,11 +45,7 @@ class IngestionControllerTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.status").value("ENQUEUED"));
 
-        verify(rabbitTemplate).convertAndSend(
-                eq(RabbitConfig.EXCHANGE_NAME),
-                eq("invernadero.1.temp-01"),
-                any(SensorReading.class)
-        );
+        verify(publisherService).publish(any());
     }
 
     @Test
