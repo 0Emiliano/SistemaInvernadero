@@ -10,7 +10,7 @@ import { IngestionView } from './components/ingestion/IngestionView';
 import { Shell } from './components/layout/Shell';
 import { SensorList } from './components/sensors/SensorList';
 import { Panel } from './components/ui/Panel';
-import { getSystemData, ingestTelemetry, registerSensor, resolveAlert, seedDemoData, sendAdapterTelemetry, updateTemperatureThreshold } from './services/invernaderoApi';
+import { deleteSensor, getSystemData, ingestTelemetry, registerSensor, resolveAlert, seedDemoData, sendAdapterTelemetry, updateSensorStatus, updateTemperatureThreshold } from './services/invernaderoApi';
 import type { ActiveTab, AlertItem, DashboardPayload, InfraStatus, SensorItem, TelemetryFormData, ThresholdConfig } from './types';
 
 const emptyDashboard: DashboardPayload = {
@@ -28,6 +28,7 @@ const emptyReading: TelemetryFormData = {
 };
 
 export default function App() {
+  const [activeAction, setActiveAction] = useState('');
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [dashboard, setDashboard] = useState<DashboardPayload>(emptyDashboard);
@@ -40,9 +41,11 @@ export default function App() {
   const [threshold, setThreshold] = useState<ThresholdConfig>();
   const [thresholdDraft, setThresholdDraft] = useState(35);
 
-  const loadData = async () => {
+  const loadData = async (clearMessage = true) => {
     setLoading(true);
-    setMessage('');
+    if (clearMessage) {
+      setMessage('');
+    }
 
     try {
       const data = await getSystemData(greenhouseId);
@@ -65,43 +68,97 @@ export default function App() {
     return () => window.clearInterval(interval);
   }, []);
 
+  const runAction = async (action: string, task: () => Promise<void>) => {
+    setActiveAction(action);
+    setMessage('');
+
+    try {
+      await task();
+    } catch (error) {
+      setMessage(getErrorMessage(error));
+    } finally {
+      setActiveAction('');
+    }
+  };
+
   const submitTelemetry = async (event: React.FormEvent) => {
     event.preventDefault();
-    await ingestTelemetry(formData);
-    setMessage('Lectura enviada a RabbitMQ.');
-    await loadData();
+    await runAction('ingest', async () => {
+      await ingestTelemetry(formData);
+      setMessage('Lectura enviada a RabbitMQ. Sincronizando datos...');
+      await wait(1400);
+      await loadData(false);
+      setMessage('Lectura enviada y dashboard actualizado.');
+    });
   };
 
   const submitAdapterTelemetry = async (adapter: 'modbus' | 'mqtt') => {
-    await sendAdapterTelemetry(adapter, formData);
-    setMessage(`Lectura enviada desde adapter ${adapter.toUpperCase()}.`);
-    await loadData();
+    await runAction(adapter, async () => {
+      await sendAdapterTelemetry(adapter, formData);
+      setMessage(`Lectura enviada desde adapter ${adapter.toUpperCase()}. Sincronizando datos...`);
+      await wait(1400);
+      await loadData(false);
+      setMessage(`Lectura ${adapter.toUpperCase()} procesada.`);
+    });
   };
 
   const submitSensorRegistration = async (event: React.FormEvent) => {
     event.preventDefault();
-    await registerSensor(formData);
-    setMessage('Sensor registrado.');
-    await loadData();
+    await runAction('register', async () => {
+      await registerSensor(formData);
+      setMessage('Sensor registrado. Actualizando lista...');
+      await loadData(false);
+      setMessage('Sensor registrado correctamente.');
+    });
   };
 
   const loadDemoData = async () => {
-    await seedDemoData();
-    setMessage('Datos demo enviados al flujo RabbitMQ.');
-    window.setTimeout(loadData, 700);
+    await runAction('demo', async () => {
+      await seedDemoData();
+      setMessage('Datos demo enviados a RabbitMQ. Esperando persistencia...');
+      await wait(2200);
+      await loadData(false);
+      setMessage('Datos demo procesados y dashboard actualizado.');
+    });
   };
 
   const resolveSelectedAlert = async (alertId: number) => {
-    await resolveAlert(alertId);
-    setMessage('Alerta resuelta.');
-    await loadData();
+    await runAction(`resolve-${alertId}`, async () => {
+      await resolveAlert(alertId);
+      setMessage('Alerta resuelta. Actualizando panel...');
+      await loadData(false);
+      setMessage('Alerta resuelta correctamente.');
+    });
   };
 
   const saveThreshold = async (event: React.FormEvent) => {
     event.preventDefault();
-    await updateTemperatureThreshold(greenhouseId, thresholdDraft);
-    setMessage('Umbral de temperatura actualizado.');
-    await loadData();
+    await runAction('threshold', async () => {
+      await updateTemperatureThreshold(greenhouseId, thresholdDraft);
+      setMessage('Umbral de temperatura actualizado.');
+      await loadData(false);
+    });
+  };
+
+  const changeSensorStatus = async (sensorId: number, status: 'ACTIVE' | 'INACTIVE' | 'MAINTENANCE') => {
+    await runAction(`sensor-${sensorId}`, async () => {
+      await updateSensorStatus(sensorId, status);
+      setMessage(`Sensor ${status === 'ACTIVE' ? 'activado' : status === 'INACTIVE' ? 'pausado' : 'en mantenimiento'}.`);
+      await loadData(false);
+    });
+  };
+
+  const removeSensor = async (sensorId: number) => {
+    const confirmed = window.confirm('Eliminar este sensor del inventario? Las lecturas historicas se conservan.');
+    if (!confirmed) {
+      return;
+    }
+
+    await runAction(`sensor-${sensorId}`, async () => {
+      await deleteSensor(sensorId);
+      setMessage('Sensor eliminado del inventario. Las lecturas historicas se conservan.');
+      await loadData(false);
+    });
   };
 
   const exportCsv = () => {
@@ -131,7 +188,7 @@ export default function App() {
       <div className="mx-auto max-w-[1600px] space-y-8">
         {activeTab === 'dashboard' ? (
           <>
-            <PageHeader loading={loading} onDemoSeed={loadDemoData} onExport={exportCsv} onRefresh={loadData} />
+            <PageHeader activeAction={activeAction} loading={loading} onDemoSeed={loadDemoData} onExport={exportCsv} onRefresh={() => loadData()} />
             {message && (
               <p className="rounded-xl border border-emerald-500/10 bg-emerald-500/5 px-4 py-3 text-sm text-emerald-300">
                 {message}
@@ -147,11 +204,19 @@ export default function App() {
             </div>
           </>
         ) : activeTab === 'sensores' ? (
-          <SensorList sensors={sensors} />
+          <>
+            {message && (
+              <p className="rounded-xl border border-emerald-500/10 bg-emerald-500/5 px-4 py-3 text-sm text-emerald-300">
+                {message}
+              </p>
+            )}
+            <SensorList activeAction={activeAction} onDelete={removeSensor} onStatusChange={changeSensorStatus} sensors={sensors} />
+          </>
         ) : activeTab === 'ingestion' ? (
           <IngestionView
             formData={formData}
             message={message}
+            activeAction={activeAction}
             onAdapterSubmit={submitAdapterTelemetry}
             onRegister={submitSensorRegistration}
             onSubmit={submitTelemetry}
@@ -175,7 +240,21 @@ export default function App() {
   );
 }
 
-function PageHeader({ loading, onDemoSeed, onExport, onRefresh }: { loading: boolean; onDemoSeed: () => void; onExport: () => void; onRefresh: () => void }) {
+function PageHeader({
+  activeAction,
+  loading,
+  onDemoSeed,
+  onExport,
+  onRefresh,
+}: {
+  activeAction: string;
+  loading: boolean;
+  onDemoSeed: () => void;
+  onExport: () => void;
+  onRefresh: () => void;
+}) {
+  const busy = Boolean(activeAction) || loading;
+
   return (
     <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
       <div>
@@ -190,23 +269,38 @@ function PageHeader({ loading, onDemoSeed, onExport, onRefresh }: { loading: boo
           Export
         </button>
         <button
-          className="flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 font-mono text-xs uppercase tracking-widest text-emerald-300 transition-colors hover:border-emerald-500/40 hover:text-emerald-200"
+          className="flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 font-mono text-xs uppercase tracking-widest text-emerald-300 transition-colors hover:border-emerald-500/40 hover:text-emerald-200 disabled:cursor-wait disabled:opacity-50"
+          disabled={busy}
           onClick={onDemoSeed}
           type="button"
         >
-          Demo
+          {activeAction === 'demo' ? 'Sending...' : 'Demo'}
         </button>
         <button
-          className="flex items-center gap-2 rounded-lg bg-emerald-500 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-black shadow-lg shadow-emerald-500/20 transition-colors hover:bg-emerald-400"
+          className="flex items-center gap-2 rounded-lg bg-emerald-500 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-black shadow-lg shadow-emerald-500/20 transition-colors hover:bg-emerald-400 disabled:cursor-wait disabled:opacity-60"
+          disabled={busy}
           onClick={onRefresh}
           type="button"
         >
-          <RefreshCcw className={loading ? 'animate-spin' : ''} size={14} />
-          Sync Now
+          <RefreshCcw className={loading || activeAction === 'sync' ? 'animate-spin' : ''} size={14} />
+          {loading ? 'Syncing...' : 'Sync Now'}
         </button>
       </div>
     </div>
   );
+}
+
+function getErrorMessage(error: unknown) {
+  if (typeof error === 'object' && error !== null && 'response' in error) {
+    const response = (error as { response?: { data?: { message?: string } } }).response;
+    return response?.data?.message ?? 'La operacion fallo. Revisa backend o credenciales.';
+  }
+
+  return 'No se pudo completar la operacion. Intentalo de nuevo.';
+}
+
+function wait(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 function SystemFooter() {

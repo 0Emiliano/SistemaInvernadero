@@ -44,12 +44,16 @@ services:
     ports:
       - "8080:8080"
     environment:
+      DB_PORT: ${DB_PORT:-5432}
+      DB_PROVIDER: ${DB_PROVIDER:-timescaledb-local}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-invernadero_db}
       DB_USER: ${POSTGRES_USER:-admin}
       DB_HOST: timescaledb
       RABBIT_HOST: rabbitmq
       RABBIT_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
       RABBIT_USER: ${RABBITMQ_USER:-guest}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
     depends_on:
       timescaledb:
         condition: service_healthy
@@ -78,6 +82,7 @@ services:
       - prometheus_data:/prometheus
     depends_on:
       - backend
+      - rabbitmq
 
   grafana:
     image: grafana/grafana:11.3.1

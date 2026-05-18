@@ -26,14 +26,7 @@ export async function ingestTelemetry(formData: TelemetryFormData) {
 }
 
 export async function registerSensor(formData: TelemetryFormData) {
-  return axios.post(`${API_URL}/sensors/register`, null, {
-    params: {
-      greenhouseId: formData.greenhouseId,
-      sensorId: formData.sensorId,
-      manufacturer: formData.manufacturer,
-      type: 'TELEMETRY',
-    },
-  });
+  return axios.post(`${API_URL}/sensors/register`, formData, { params: { type: 'TELEMETRY' } });
 }
 
 export async function seedDemoData() {
@@ -42,6 +35,14 @@ export async function seedDemoData() {
 
 export async function resolveAlert(alertId: number) {
   return axios.patch(`${API_URL}/alerts/${alertId}/resolve`);
+}
+
+export async function updateSensorStatus(sensorId: number, status: 'ACTIVE' | 'INACTIVE' | 'MAINTENANCE') {
+  return axios.patch(`${API_URL}/sensors/${sensorId}/status`, { status });
+}
+
+export async function deleteSensor(sensorId: number) {
+  return axios.delete(`${API_URL}/sensors/${sensorId}`);
 }
 
 export async function sendAdapterTelemetry(adapter: 'modbus' | 'mqtt', formData: TelemetryFormData) {

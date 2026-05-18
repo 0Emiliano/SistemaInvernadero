@@ -3,9 +3,11 @@ import { Panel } from '../ui/Panel';
 import type { InfraStatus } from '../../types';
 
 export function InfraView({ infra }: { infra?: InfraStatus }) {
+  const databaseName = infra?.databaseProvider?.includes('supabase') ? 'Supabase Postgres' : 'TimescaleDB';
+
   const services = [
     { icon: <Server />, name: 'Spring Boot API', port: '8080', status: infra?.backend ?? 'UNKNOWN' },
-    { icon: <Database />, name: 'TimescaleDB', port: '5432', status: infra?.database ?? 'UNKNOWN' },
+    { icon: <Database />, name: databaseName, port: infra?.databaseProvider?.includes('supabase') ? '5432 SSL' : '5432', status: infra?.database ?? 'UNKNOWN' },
     { icon: <MessageSquare />, name: 'RabbitMQ', port: '5672 / 15673', status: infra?.rabbitmq ?? 'UNKNOWN' },
     { icon: <Gauge />, name: 'Prometheus', port: '9090', status: infra ? 'UP' : 'UNKNOWN' },
     { icon: <Boxes />, name: 'Grafana', port: '3001', status: 'UP' },
@@ -34,7 +36,10 @@ export function InfraView({ infra }: { infra?: InfraStatus }) {
           <InfraMetric label="Alertas activas" value={String(infra?.activeAlerts ?? 0)} />
           <InfraMetric label="Scrape target" value="backend:8080" />
           <InfraMetric label="Metrics path" value={infra?.prometheusPath ?? '/actuator/prometheus'} />
-          <InfraMetric label="Datasource" value="Prometheus" />
+          <InfraMetric label="Datasource" value={infra?.databaseProvider ?? 'timescaledb-local'} />
+          <InfraMetric label="Database product" value={infra?.databaseProduct ?? 'PostgreSQL'} />
+          <InfraMetric label="Timescale extension" value={infra?.timescaleExtension ?? 'UNKNOWN'} />
+          <InfraMetric label="Mediciones hypertable" value={infra?.medicionesHypertable ?? 'UNKNOWN'} />
         </div>
       </Panel>
     </div>

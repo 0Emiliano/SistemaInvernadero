@@ -59,6 +59,38 @@ public class SensorService {
                 .toList();
     }
 
+    @Transactional
+    public SensorEntity updateStatus(Long id, String status) {
+        if (id == null) {
+            throw new IllegalArgumentException("sensor id is required");
+        }
+        if (isBlank(status)) {
+            throw new IllegalArgumentException("status is required");
+        }
+
+        String normalizedStatus = status.trim().toUpperCase();
+        if (!List.of("ACTIVE", "INACTIVE", "MAINTENANCE").contains(normalizedStatus)) {
+            throw new IllegalArgumentException("status must be ACTIVE, INACTIVE or MAINTENANCE");
+        }
+
+        SensorEntity sensor = sensorRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("sensor not found"));
+        sensor.setStatus(normalizedStatus);
+        sensor.setLastSeenAt(LocalDateTime.now());
+        return sensorRepository.save(sensor);
+    }
+
+    @Transactional
+    public void deleteSensor(Long id) {
+        if (id == null) {
+            throw new IllegalArgumentException("sensor id is required");
+        }
+        if (!sensorRepository.existsById(id)) {
+            throw new IllegalArgumentException("sensor not found");
+        }
+        sensorRepository.deleteById(id);
+    }
+
     public Map<String, Object> toResponse(SensorEntity sensor) {
         Map<String, Object> response = new HashMap<>();
         response.put("id", sensor.getId());

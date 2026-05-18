@@ -1,7 +1,6 @@
 package com.sistemas.invernadero.modules.config;
 
 import com.sistemas.invernadero.core.responses.ApiResponse;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -13,7 +12,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/config")
-@CrossOrigin(origins = "*")
 public class ConfigController {
 
     private final ThresholdConfigService thresholdConfigService;

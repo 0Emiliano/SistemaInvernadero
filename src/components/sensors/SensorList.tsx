@@ -1,8 +1,18 @@
-import { Radio, Thermometer, Droplets } from 'lucide-react';
+import { Pause, Play, Radio, Trash2, Wrench, Thermometer, Droplets } from 'lucide-react';
 import { Panel } from '../ui/Panel';
 import type { SensorItem } from '../../types';
 
-export function SensorList({ sensors }: { sensors: SensorItem[] }) {
+export function SensorList({
+  activeAction,
+  onDelete,
+  onStatusChange,
+  sensors,
+}: {
+  activeAction: string;
+  onDelete: (id: number) => void;
+  onStatusChange: (id: number, status: 'ACTIVE' | 'INACTIVE' | 'MAINTENANCE') => void;
+  sensors: SensorItem[];
+}) {
   return (
     <div className="space-y-6">
       <Header title="Registro de sensores" subtitle="Inventario persistente con ultima lectura disponible." />
@@ -32,10 +42,74 @@ export function SensorList({ sensors }: { sensors: SensorItem[] }) {
               <span className="font-mono text-[10px] text-zinc-500">{sensor.manufacturer || 'N/A'}</span>
               <span className="font-mono text-[10px] uppercase tracking-widest text-emerald-400">{sensor.status}</span>
             </div>
+            {sensor.id && (
+              <div className="mt-4 grid grid-cols-4 gap-2">
+                <SensorAction
+                  active={sensor.status === 'ACTIVE'}
+                  disabled={activeAction === `sensor-${sensor.id}`}
+                  icon={<Play size={14} />}
+                  label="Activar"
+                  onClick={() => onStatusChange(sensor.id!, 'ACTIVE')}
+                />
+                <SensorAction
+                  active={sensor.status === 'INACTIVE'}
+                  disabled={activeAction === `sensor-${sensor.id}`}
+                  icon={<Pause size={14} />}
+                  label="Pausar"
+                  onClick={() => onStatusChange(sensor.id!, 'INACTIVE')}
+                />
+                <SensorAction
+                  active={sensor.status === 'MAINTENANCE'}
+                  disabled={activeAction === `sensor-${sensor.id}`}
+                  icon={<Wrench size={14} />}
+                  label="Mant."
+                  onClick={() => onStatusChange(sensor.id!, 'MAINTENANCE')}
+                />
+                <SensorAction
+                  danger
+                  disabled={activeAction === `sensor-${sensor.id}`}
+                  icon={<Trash2 size={14} />}
+                  label="Borrar"
+                  onClick={() => onDelete(sensor.id!)}
+                />
+              </div>
+            )}
           </Panel>
         ))}
       </div>
     </div>
+  );
+}
+
+function SensorAction({
+  active = false,
+  danger = false,
+  disabled,
+  icon,
+  label,
+  onClick,
+}: {
+  active?: boolean;
+  danger?: boolean;
+  disabled: boolean;
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
+  const activeClass = active ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : '';
+  const dangerClass = danger ? 'hover:border-red-500/30 hover:text-red-300' : 'hover:border-emerald-500/30 hover:text-emerald-300';
+
+  return (
+    <button
+      className={`flex h-9 items-center justify-center gap-1 rounded-lg border border-[#2A2A2A] bg-black/20 px-2 font-mono text-[10px] uppercase text-zinc-400 transition disabled:cursor-wait disabled:opacity-50 ${activeClass} ${dangerClass}`}
+      disabled={disabled}
+      onClick={onClick}
+      title={label}
+      type="button"
+    >
+      {icon}
+      <span className="hidden sm:inline">{label}</span>
+    </button>
   );
 }
 

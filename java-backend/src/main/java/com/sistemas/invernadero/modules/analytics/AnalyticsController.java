@@ -2,6 +2,7 @@ package com.sistemas.invernadero.modules.analytics;
 
 import com.sistemas.invernadero.core.responses.ApiResponse;
 import com.sistemas.invernadero.modules.alerts.AlertService;
+import com.sistemas.invernadero.modules.ingestion.dto.SensorReadingRequest;
 import com.sistemas.invernadero.modules.persistence.SensorReadingRepository;
 import com.sistemas.invernadero.modules.persistence.model.SensorReadingEntity;
 import com.sistemas.invernadero.modules.sensors.SensorEntity;
@@ -14,7 +15,6 @@ import java.util.*;
 
 @RestController
 @RequestMapping("/api/v1")
-@CrossOrigin(origins = "*")
 public class AnalyticsController {
 
     @Autowired
@@ -56,12 +56,25 @@ public class AnalyticsController {
 
     @PostMapping("/sensors/register")
     public ApiResponse<Map<String, String>> registerSensor(
-            @RequestParam String greenhouseId,
-            @RequestParam String sensorId,
+            @RequestBody(required = false) SensorReadingRequest body,
+            @RequestParam(required = false) String greenhouseId,
+            @RequestParam(required = false) String sensorId,
             @RequestParam(required = false) String type,
             @RequestParam(required = false) String manufacturer) {
-        
-        SensorEntity sensor = sensorService.registerSensor(greenhouseId, sensorId, type, manufacturer);
+
+        String resolvedGreenhouseId = body != null && body.getGreenhouseId() != null ? body.getGreenhouseId() : greenhouseId;
+        String resolvedSensorId = body != null && body.getSensorId() != null ? body.getSensorId() : sensorId;
+        String resolvedManufacturer = body != null && body.getManufacturer() != null ? body.getManufacturer() : manufacturer;
+
+        if (resolvedGreenhouseId == null || resolvedGreenhouseId.isBlank() || resolvedSensorId == null || resolvedSensorId.isBlank()) {
+            throw new IllegalArgumentException("greenhouseId and sensorId are required");
+        }
+
+        SensorEntity sensor = sensorService.registerSensor(
+                resolvedGreenhouseId.trim(),
+                resolvedSensorId.trim(),
+                type,
+                resolvedManufacturer);
         Map<String, String> response = new HashMap<>();
         response.put("sensorId", sensor.getSensorId());
         response.put("greenhouseId", sensor.getGreenhouseId());
@@ -73,5 +86,19 @@ public class AnalyticsController {
     @PatchMapping("/alerts/{id}/resolve")
     public ApiResponse<Map<String, Object>> resolveAlert(@PathVariable Long id) {
         return ApiResponse.success(alertService.resolve(id), "Alert resolved successfully");
+    }
+
+    @PatchMapping("/sensors/{id}/status")
+    public ApiResponse<Map<String, Object>> updateSensorStatus(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> body) {
+        SensorEntity sensor = sensorService.updateStatus(id, body.get("status"));
+        return ApiResponse.success(sensorService.toResponse(sensor), "Sensor status updated successfully");
+    }
+
+    @DeleteMapping("/sensors/{id}")
+    public ApiResponse<Map<String, Long>> deleteSensor(@PathVariable Long id) {
+        sensorService.deleteSensor(id);
+        return ApiResponse.success(Map.of("id", id), "Sensor deleted successfully");
     }
 }

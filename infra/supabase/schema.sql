@@ -19,6 +19,12 @@ END $$;
 
 ALTER TABLE public.mediciones ENABLE ROW LEVEL SECURITY;
 
+CREATE INDEX IF NOT EXISTS idx_greenhouse_sensor
+    ON public.mediciones (greenhouse_id, sensor_id, timestamp DESC);
+
+CREATE INDEX IF NOT EXISTS idx_greenhouse_timestamp
+    ON public.mediciones (greenhouse_id, timestamp DESC);
+
 CREATE TABLE IF NOT EXISTS public.sensores (
     id BIGSERIAL PRIMARY KEY,
     sensor_id TEXT NOT NULL,

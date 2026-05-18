@@ -65,6 +65,10 @@ export interface ThresholdConfig {
 export interface InfraStatus {
   backend: string;
   database: string;
+  databaseProduct?: string;
+  databaseProvider?: string;
+  timescaleExtension?: string;
+  medicionesHypertable?: string;
   rabbitmq: string;
   readings: number;
   sensors: number;

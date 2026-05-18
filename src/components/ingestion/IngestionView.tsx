@@ -3,6 +3,7 @@ import { Panel } from '../ui/Panel';
 import type { TelemetryFormData } from '../../types';
 
 export function IngestionView({
+  activeAction,
   formData,
   message,
   onRegister,
@@ -10,6 +11,7 @@ export function IngestionView({
   onSubmit,
   setFormData,
 }: {
+  activeAction: string;
   formData: TelemetryFormData;
   message: string;
   onRegister: (event: React.FormEvent) => void;
@@ -17,6 +19,8 @@ export function IngestionView({
   onSubmit: (event: React.FormEvent) => void;
   setFormData: React.Dispatch<React.SetStateAction<TelemetryFormData>>;
 }) {
+  const busy = Boolean(activeAction);
+
   return (
     <div className="space-y-8">
       <div>
@@ -33,9 +37,9 @@ export function IngestionView({
             <Field label="Humedad" type="number" value={formData.humidity} onChange={(value) => setFormData((data) => ({ ...data, humidity: Number(value) }))} />
             <Field label="Fabricante" value={formData.manufacturer} onChange={(value) => setFormData((data) => ({ ...data, manufacturer: value }))} />
             <div className="flex items-end">
-              <button className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-emerald-500 px-4 text-xs font-bold uppercase tracking-widest text-black hover:bg-emerald-400" type="submit">
+              <button className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-emerald-500 px-4 text-xs font-bold uppercase tracking-widest text-black hover:bg-emerald-400 disabled:cursor-wait disabled:opacity-60" disabled={busy} type="submit">
                 <Send size={15} />
-                Enviar
+                {activeAction === 'ingest' ? 'Enviando...' : 'Enviar'}
               </button>
             </div>
           </form>
@@ -43,16 +47,16 @@ export function IngestionView({
         <Panel eyebrow="Registro" title="Alta rapida">
           <form className="space-y-4" onSubmit={onRegister}>
             <p className="text-sm text-zinc-500">Usa los campos actuales para registrar el sensor seleccionado.</p>
-            <button className="w-full rounded-lg border border-[#2A2A2A] bg-zinc-900 px-4 py-3 text-xs font-bold uppercase tracking-widest text-zinc-300 hover:border-emerald-500/30 hover:text-emerald-300" type="submit">
-              Registrar sensor
+            <button className="w-full rounded-lg border border-[#2A2A2A] bg-zinc-900 px-4 py-3 text-xs font-bold uppercase tracking-widest text-zinc-300 hover:border-emerald-500/30 hover:text-emerald-300 disabled:cursor-wait disabled:opacity-50" disabled={busy} type="submit">
+              {activeAction === 'register' ? 'Registrando...' : 'Registrar sensor'}
             </button>
           </form>
           <div className="mt-5 grid grid-cols-2 gap-3 border-t border-[#2A2A2A] pt-5">
-            <button className="rounded-lg border border-[#2A2A2A] bg-black/20 px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-zinc-400 hover:border-emerald-500/30 hover:text-emerald-300" onClick={() => onAdapterSubmit('mqtt')} type="button">
-              MQTT
+            <button className="rounded-lg border border-[#2A2A2A] bg-black/20 px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-zinc-400 hover:border-emerald-500/30 hover:text-emerald-300 disabled:cursor-wait disabled:opacity-50" disabled={busy} onClick={() => onAdapterSubmit('mqtt')} type="button">
+              {activeAction === 'mqtt' ? 'MQTT...' : 'MQTT'}
             </button>
-            <button className="rounded-lg border border-[#2A2A2A] bg-black/20 px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-zinc-400 hover:border-emerald-500/30 hover:text-emerald-300" onClick={() => onAdapterSubmit('modbus')} type="button">
-              Modbus
+            <button className="rounded-lg border border-[#2A2A2A] bg-black/20 px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-zinc-400 hover:border-emerald-500/30 hover:text-emerald-300 disabled:cursor-wait disabled:opacity-50" disabled={busy} onClick={() => onAdapterSubmit('modbus')} type="button">
+              {activeAction === 'modbus' ? 'Modbus...' : 'Modbus'}
             </button>
           </div>
         </Panel>
